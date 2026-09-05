@@ -1,4 +1,4 @@
-import Image from "next/image";
+import LogoImage, { LOGO_SRC } from "@/components/logo-image";
 
 type LogoVariant = "navbar" | "hero" | "footer" | "mark" | "hero-illuminated";
 
@@ -13,8 +13,9 @@ const SIZES: Record<LogoVariant, { width: number; height: number }> = {
 };
 
 /**
- * Reusable INFAIX logo. Always uses the official asset
- * at /public/infaix-logo.png — never replaced or recolored.
+ * Reusable INFAIX logo — the single canonical source of truth.
+ * Always renders the official asset at /public/infaix-logo.png
+ * (see LOGO_SRC) — never replaced or recolored.
  * The `hero-illuminated` variant presents it as an engineered
  * insignia: purple glow, faint wireframe ring + technical base.
  */
@@ -39,11 +40,10 @@ export default function InfaixLogo({
           <ellipse cx="110" cy="176" rx="62" ry="12" fill="none" stroke="rgba(145,70,255,0.28)" strokeWidth="1" />
           <ellipse cx="110" cy="176" rx="44" ry="8" fill="none" stroke="rgba(179,107,255,0.3)" strokeWidth="1" />
         </svg>
-        <Image
-          src="/infaix-logo.png"
-          alt=""
+        <LogoImage
           width={width}
           height={height}
+          alt=""
           priority={priority}
           className="infaix-hero-img"
         />
@@ -52,13 +52,14 @@ export default function InfaixLogo({
   }
 
   return (
-    <Image
-      src="/infaix-logo.png"
-      alt="INFAIX"
+    <LogoImage
       width={width}
       height={height}
+      alt="INFAIX"
       priority={priority}
       className={`infaix-logo-img ${className}`}
     />
   );
 }
+
+export { LOGO_SRC };

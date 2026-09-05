@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import InfaixLogo from "@/components/infaix-logo";
 
 const links = [
@@ -13,6 +14,26 @@ const links = [
 
 export default function Nav() {
   const pathname = usePathname();
+  const [signedIn, setSignedIn] = useState(false);
+
+  // Session state only affects which auth link is shown; under `next dev`
+  // (no Worker API) the request fails and we fall back to the login link.
+  useEffect(() => {
+    let live = true;
+    fetch("/api/auth/me")
+      .then((r) => {
+        if (live) setSignedIn(r.ok);
+      })
+      .catch(() => {
+        if (live) setSignedIn(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [pathname]);
+
+  const authLink = signedIn ? { href: "/account", label: "ACCOUNT" } : { href: "/login", label: "LOGIN" };
+  const allLinks = [...links, authLink];
 
   return (
     <header>
@@ -26,16 +47,22 @@ export default function Nav() {
           </Link>
 
           <div className="nav-links">
-            {links.map((l) => {
+            {allLinks.map((l) => {
               const active =
                 l.href === "/"
                   ? pathname === "/"
                   : pathname === l.href || pathname.startsWith(l.href + "/");
+              const cls = [
+                active ? "active" : "",
+                l.href === "/login" || l.href === "/account" ? "nav-auth" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
               return (
                 <Link
                   key={l.href}
                   href={l.href}
-                  className={active ? "active" : undefined}
+                  className={cls || undefined}
                   aria-current={active ? "page" : undefined}
                 >
                   {l.label}

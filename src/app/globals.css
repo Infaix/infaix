@@ -338,6 +338,18 @@ nav {
   transform: scale(1.08);
 }
 
+/* Last-resort brand mark if the logo asset itself is unreachable.
+   Only rendered after a failed load + a failed cache-busted retry. */
+.infaix-logo-fallback {
+  font-family: var(--font-display);
+  color: var(--highlight);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 0 12px rgba(145, 70, 255, 0.6);
+}
+
 .brand-mark span {
   font-family: var(--font-display);
   font-weight: 500;
@@ -399,9 +411,18 @@ nav {
 
 @media (max-width: 720px) {
   .nav-links {
-    gap: 20px;
+    gap: 14px;
+    font-size: 12px;
   }
   .nav-github .gh-label {
+    display: none;
+  }
+}
+
+/* Five links don't fit a 320px viewport: keep the auth link (session
+   entry point) and rely on the footer for the rest on tiny screens. */
+@media (max-width: 480px) {
+  .nav-links a:not(.nav-auth) {
     display: none;
   }
 }
@@ -1583,6 +1604,99 @@ footer {
 
 .ai-wrap {
   max-width: 800px;
+}
+
+/* ================= auth ================= */
+
+.auth-field {
+  margin-bottom: 16px;
+}
+
+.auth-field label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.auth-field .ai-input {
+  width: 100%;
+}
+
+.auth-error {
+  border: 1px solid rgba(180, 60, 60, 0.5);
+  color: #e09999;
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 2px;
+  margin-bottom: 16px;
+}
+
+.auth-success {
+  border: 1px solid rgba(60, 180, 120, 0.4);
+  color: #7ee2b0;
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 2px;
+  margin-bottom: 16px;
+}
+
+.auth-links {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.auth-links a:hover {
+  color: var(--highlight);
+}
+
+.auth-submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.auth-submit.ai-send {
+  display: inline-flex;
+}
+
+.kv-list {
+  list-style: none;
+  margin-bottom: 8px;
+}
+
+.kv-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.kv-list .k {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-top: 3px;
+}
+
+.kv-list .v {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.auth-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 28px 0;
 }
 
 /* content above ambient */

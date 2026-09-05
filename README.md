@@ -24,7 +24,18 @@ infaix.com          → Homepage (INFAIX identity, ecosystem, capabilities)
 infaix.com/forge    → FORGE (infrastructure, projects, lab, experiments)
 infaix.com/ai       → INFAIX AI (AI chat interface)
 infaix.com/about    → About (philosophy, what INFAIX is)
+infaix.com/login    → Account sign-in (invite-based identity)
+infaix.com/register → Invite-only registration
+infaix.com/account  → Protected account page (profile, password, logout)
 ```
+
+## Account system
+
+Invite-only identity backed by the Cloudflare Worker + D1 (`worker/`,
+`db/`). Same-origin `/api/auth/*` and `/api/admin/*` endpoints; sessions in
+`HttpOnly`/`Secure`/`SameSite=Lax` cookies. Full design, flows, and
+operations: [`docs/auth.md`](docs/auth.md). Security policy:
+[`SECURITY.md`](SECURITY.md).
 
 ## Technology Stack
 
@@ -54,6 +65,12 @@ npm start
 
 ```bash
 npm run lint
+```
+
+## Tests
+
+```bash
+npm test        # vitest: account-system unit tests (no network required)
 ```
 
 ## Environment Variables
