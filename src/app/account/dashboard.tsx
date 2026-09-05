@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, type PublicUser } from "@/lib/auth-client";
@@ -95,7 +96,17 @@ export default function AccountDashboard() {
           <span className="k">Role</span>
           <span className="v">{user.role}</span>
         </li>
+        <li>
+          <span className="k">INFAIX AI</span>
+          <span className="v">{user.role === "OWNER" || user.ai_access ? "Enabled" : "Not enabled"}</span>
+        </li>
       </ul>
+
+      {user.role === "OWNER" && (
+        <div className="auth-links" style={{ marginTop: 16 }}>
+          <Link href="/account/admin/ai-access">Manage AI access →</Link>
+        </div>
+      )}
 
       <hr className="auth-divider" />
       <form onSubmit={saveName}>

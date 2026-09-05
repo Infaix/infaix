@@ -534,3 +534,87 @@ export async function handleSetUserStatus(
   const updated = await ctx.store.getUserById(id);
   return json({ user: updated ? toPublicUser(updated) : null });
 }
+
+// ---------------------------------------------------------------- owner AI access admin
+
+export type OwnerAuth = { ok: true; user: UserRow } | { ok: false; result: HandlerResult };
+
+/**
+ * OWNER-only gate for AI access administration. Unlike adminAuth, the
+ * bootstrap token is never accepted here and ADMIN sessions are denied:
+ * only a live OWNER session passes. Unauthenticated → 401, non-OWNER → 403.
+ */
+export async function ownerAuth(ctx: HandlerContext, req: Request): Promise<OwnerAuth> {
+  const authed = await verifySession(
+    { store: ctx.store, env: ctx.env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure },
+    req.headers.get("cookie")
+  );
+  if (!authed) return { ok: false, result: err("UNAUTHENTICATED", "Not signed in.", 401) };
+  if (authed.user.role !== "OWNER") return { ok: false, result: err("FORBIDDEN", "Forbidden.", 403) };
+  return { ok: true, user: authed.user };
+}
+
+/** Admin-safe user projection — never password hashes or internals. */
+function adminUserView(u: UserRow) {
+  return {
+    id: u.id,
+    email: u.email,
+    display_name: u.display_name,
+    role: u.role,
+    status: u.status,
+    email_verified: u.email_verified === 1,
+    ai_access: (u.ai_access ?? 0) === 1,
+    created_at: u.created_at,
+    last_login_at: u.last_login_at,
+  };
+}
+
+async function adminRateLimit(ctx: HandlerContext): Promise<HandlerResult | null> {
+  const rl = limitFromEnv(ctx.env, "RL_ADMIN_LIMIT", "RL_ADMIN_WINDOW", 30, 3600);
+  const gate = await checkRateLimit(ctx.store, `admin-users:${ctx.ip ?? "unknown"}`, rl, ctx.now());
+  if (!gate.allowed) {
+    return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, {
+      "retry-after": String(gate.retryAfterSec),
+    });
+  }
+  return null;
+}
+
+export async function handleListUsers(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
+  const auth = await ownerAuth(ctx, req);
+  if (!auth.ok) return auth.result;
+  const limited = await adminRateLimit(ctx);
+  if (limited) return limited;
+  const rows = await ctx.store.listUsers(200);
+  return json({ users: rows.map(adminUserView) });
+}
+
+export async function handleSetAiAccess(ctx: HandlerContext, req: Request, id: string): Promise<HandlerResult> {
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  const auth = await ownerAuth(ctx, req);
+  if (!auth.ok) return auth.result;
+  const limited = await adminRateLimit(ctx);
+  if (limited) return limited;
+  if (!/^usr_[0-9a-f]{24}$/.test(id)) return err("NOT_FOUND", "User not found.", 404);
+  // Strict schema: exactly { enabled: boolean } — unknown fields rejected.
+  const body = await readJson(req);
+  const keys = body ? Object.keys(body) : [];
+  if (!body || keys.length !== 1 || keys[0] !== "enabled" || typeof body.enabled !== "boolean") {
+    return err("INVALID_INPUT", "Request must be exactly { enabled: boolean }.", 400);
+  }
+  const target = await ctx.store.getUserById(id);
+  if (!target) return err("NOT_FOUND", "User not found.", 404);
+  if (id === auth.user.id) {
+    return err("INVALID_INPUT", "Owners are always AI-enabled; your own flag cannot be changed here.", 400);
+  }
+  const now = ctx.now();
+  await ctx.store.setAiAccess(id, body.enabled ? 1 : 0, now);
+  await audit(ctx.store, body.enabled ? "AI_ACCESS_ENABLED" : "AI_ACCESS_DISABLED", {
+    actor: auth.user.id,
+    target: id,
+    ip: ctx.ip,
+    now,
+  });
+  const updated = await ctx.store.getUserById(id);
+  return json({ user: updated ? adminUserView(updated) : null });
+}

@@ -40,6 +40,16 @@ export class MemoryStore implements Store {
     this.users.set(id, next);
     return true;
   }
+  async listUsers(limit: number) {
+    return [...this.users.values()].sort((a, b) => b.created_at - a.created_at).slice(0, limit).map((u) => ({ ...u }));
+  }
+  async setAiAccess(id: string, value: number, now: number) {
+    const u = this.users.get(id);
+    if (!u) return false;
+    u.ai_access = value;
+    u.updated_at = now;
+    return true;
+  }
 
   async getInvitationByTokenHash(h: string) {
     for (const inv of this.invitations.values()) if (inv.token_hash === h) return { ...inv };

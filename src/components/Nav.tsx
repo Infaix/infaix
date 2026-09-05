@@ -15,17 +15,32 @@ const links = [
 export default function Nav() {
   const pathname = usePathname();
   const [signedIn, setSignedIn] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
 
   // Session state only affects which auth link is shown; under `next dev`
   // (no Worker API) the request fails and we fall back to the login link.
   useEffect(() => {
     let live = true;
     fetch("/api/auth/me")
-      .then((r) => {
-        if (live) setSignedIn(r.ok);
+      .then(async (r) => {
+        if (!live) return;
+        setSignedIn(r.ok);
+        if (r.ok) {
+          try {
+            const data = (await r.json()) as { user?: { role?: string } };
+            setIsOwner(data.user?.role === "OWNER");
+          } catch {
+            setIsOwner(false);
+          }
+        } else {
+          setIsOwner(false);
+        }
       })
       .catch(() => {
-        if (live) setSignedIn(false);
+        if (live) {
+          setSignedIn(false);
+          setIsOwner(false);
+        }
       });
     return () => {
       live = false;
@@ -33,7 +48,7 @@ export default function Nav() {
   }, [pathname]);
 
   const authLink = signedIn ? { href: "/account", label: "ACCOUNT" } : { href: "/login", label: "LOGIN" };
-  const allLinks = [...links, authLink];
+  const allLinks = isOwner ? [...links, authLink, { href: "/account/admin/ai-access", label: "ADMIN" }] : [...links, authLink];
 
   return (
     <header>
@@ -54,7 +69,9 @@ export default function Nav() {
                   : pathname === l.href || pathname.startsWith(l.href + "/");
               const cls = [
                 active ? "active" : "",
-                l.href === "/login" || l.href === "/account" ? "nav-auth" : "",
+                l.href === "/login" || l.href === "/account" || l.href === "/account/admin/ai-access"
+                  ? "nav-auth"
+                  : "",
               ]
                 .filter(Boolean)
                 .join(" ");

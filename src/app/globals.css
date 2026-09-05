@@ -1231,6 +1231,7 @@ section {
   border-radius: 2px;
   border: 1px solid rgba(48, 42, 61, 1);
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .status-pill.live {
@@ -1699,11 +1700,85 @@ footer {
   margin: 28px 0;
 }
 
+/* ================= owner admin ================= */
+
+.admin-table-wrap {
+  overflow-x: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.admin-table caption {
+  text-align: left;
+}
+
+.admin-table th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(25, 23, 33, 0.6);
+}
+
+.admin-email {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.admin-sub {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+.admin-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ai-send.admin-toggle {
+  padding: 9px 18px;
+  font-size: 13px;
+}
+
+.ai-send.admin-toggle:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 /* content above ambient */
 main,
 header,
 footer {
   position: relative;
+  /* body is a flex column: allow items to shrink below wide content
+     (e.g. the admin table scrolls internally instead of blowing out). */
+  min-width: 0;
 }
 
 main {

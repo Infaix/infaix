@@ -30,6 +30,8 @@ export interface Store {
   getUserByEmail(email: string): Promise<UserRow | null>;
   insertUser(u: UserRow): Promise<void>;
   updateUser(id: string, patch: UserUpdate): Promise<boolean>;
+  listUsers(limit: number): Promise<UserRow[]>;
+  setAiAccess(id: string, value: number, now: number): Promise<boolean>;
   // invitations
   getInvitationByTokenHash(h: string): Promise<InvitationRow | null>;
   insertInvitation(inv: InvitationRow): Promise<void>;
@@ -99,6 +101,17 @@ export class D1Store implements Store {
     const set = keys.map((k) => `${k} = ?`).join(", ");
     const vals = keys.map((k) => patch[k] ?? null);
     const r = await this.db.prepare(`UPDATE users SET ${set} WHERE id = ?`).bind(...vals, id).run();
+    return r.meta.changes > 0;
+  }
+  async listUsers(limit: number): Promise<UserRow[]> {
+    const r = await this.db.prepare("SELECT * FROM users ORDER BY created_at DESC LIMIT ?").bind(limit).all<UserRow>();
+    return r.results;
+  }
+  async setAiAccess(id: string, value: number, now: number): Promise<boolean> {
+    const r = await this.db
+      .prepare("UPDATE users SET ai_access = ?, updated_at = ? WHERE id = ?")
+      .bind(value, now, id)
+      .run();
     return r.meta.changes > 0;
   }
 

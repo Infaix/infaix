@@ -93,6 +93,22 @@ disable/enable accounts (an `ADMIN` cannot touch non-`USER` accounts or
 escalate invite roles; `OWNER` can). No role/permission is ever read from
 client input.
 
+## Owner AI access administration
+
+AI entitlement (`users.ai_access`, default deny) is managed exclusively by
+OWNER sessions — never the bootstrap token, never `ADMIN` sessions:
+
+- UI: `/account/admin/ai-access` (owner-only; others see a denial, guests
+  are sent to `/login`). OWNER rows display "Always on" with no toggle —
+  the ownership bypass cannot be switched off.
+- API: `GET /api/admin/users` (admin-safe projection, no hashes) and
+  `POST /api/admin/users/:id/ai-access` with exactly `{ enabled: boolean }`
+  (unknown fields rejected). Self-modification is rejected.
+- Every mutation audits `AI_ACCESS_ENABLED` / `AI_ACCESS_DISABLED` with
+  actor + target, and is covered by the admin rate limit.
+- First OWNER: create via `scripts/new-invite.mjs --role OWNER`
+  (bootstrap token is invite-scoped and cannot touch these endpoints).
+
 ## Audit log
 
 `audit_log` records logins, logouts, account lifecycle, password events,

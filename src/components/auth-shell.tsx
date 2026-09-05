@@ -10,15 +10,17 @@ export default function AuthShell({
   title,
   desc,
   children,
+  wide = false,
 }: {
   label: string;
   title: string;
   desc: string;
   children: ReactNode;
+  wide?: boolean;
 }) {
   return (
     <section className="page-hero" style={{ paddingBottom: 40 }}>
-      <div className="container" style={{ maxWidth: 560 }}>
+      <div className="container" style={{ maxWidth: wide ? 880 : 560 }}>
         <div className="section-label">{label}</div>
         <h1 style={{ fontSize: "clamp(32px, 5vw, 52px)", letterSpacing: "0.04em" }}>{title}</h1>
         <p style={{ marginBottom: 28 }}>{desc}</p>

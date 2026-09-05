@@ -10,6 +10,7 @@ import {
   handleChangePassword,
   handleCreateInvite,
   handleListInvites,
+  handleListUsers,
   handleLogin,
   handleLogout,
   handleMe,
@@ -18,6 +19,7 @@ import {
   handleRequestVerification,
   handleResetPassword,
   handleRevokeInvite,
+  handleSetAiAccess,
   handleSetUserStatus,
   handleUpdateProfile,
   handleVerifyEmail,
@@ -77,6 +79,11 @@ export async function handleApi(req: Request, env: Env, url: URL, executionCtx?:
   if (method === "POST" && disable) return handleSetUserStatus(ctx, req, disable[1], "DISABLED");
   const enable = /^\/api\/admin\/users\/([^/]+)\/enable$/.exec(path);
   if (method === "POST" && enable) return handleSetUserStatus(ctx, req, enable[1], "ACTIVE");
+
+  // Owner-only AI access administration (OWNER sessions only).
+  if (method === "GET" && path === "/api/admin/users") return handleListUsers(ctx, req);
+  const aiAccess = /^\/api\/admin\/users\/([^/]+)\/ai-access$/.exec(path);
+  if (method === "POST" && aiAccess) return handleSetAiAccess(ctx, req, aiAccess[1]);
 
   // AI bridge (session auth + AI_ACCESS enforced inside handlers).
   if (method === "GET" && path === "/api/ai/models") return handleAiModels(ctx, req);
