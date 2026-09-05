@@ -27,6 +27,10 @@ export interface HandlerContext {
   origin: string;
   secure: boolean;
   mailer: Mailer;
+  /** Override for tests; defaults to global fetch. */
+  upstreamFetch?: (input: string, init: RequestInit) => Promise<Response>;
+  /** ExecutionContext.waitUntil in production; test collector otherwise. */
+  waitUntil?: (task: Promise<unknown>) => void;
 }
 
 export interface HandlerResult {
@@ -109,6 +113,7 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
     role: inv.role,
     status: "PENDING_VERIFICATION",
     email_verified: 0,
+    ai_access: 0, // default deny — granted explicitly, never inherited
     created_at: now,
     updated_at: now,
     last_login_at: null,

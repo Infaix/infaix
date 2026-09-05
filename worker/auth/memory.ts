@@ -1,7 +1,7 @@
 // In-memory Store implementation for unit tests. Mirrors D1Store
 // conditional-update semantics (claim/revoke only from PENDING).
 import type { Store, UserUpdate } from "./store";
-import type { AuditEvent, InvitationRow, ResetRow, SessionRow, UserRow, VerificationRow } from "./types";
+import type { AuditEvent, ConversationRow, InvitationRow, MessageRow, ResetRow, SessionRow, UserRow, VerificationRow } from "./types";
 
 export class MemoryStore implements Store {
   users = new Map<string, UserRow>();
@@ -33,9 +33,10 @@ export class MemoryStore implements Store {
     if (patch.display_name !== undefined) next.display_name = patch.display_name;
     if (patch.status !== undefined) next.status = patch.status;
     if (patch.email_verified !== undefined) next.email_verified = patch.email_verified;
+    if (patch.ai_access !== undefined) next.ai_access = patch.ai_access;
     if (patch.role !== undefined) next.role = patch.role;
-    next.updated_at = patch.updated_at;
     if (patch.last_login_at !== undefined) next.last_login_at = patch.last_login_at;
+    next.updated_at = patch.updated_at;
     this.users.set(id, next);
     return true;
   }
@@ -133,6 +134,34 @@ export class MemoryStore implements Store {
   }
 
   async insertAudit(e: AuditEvent) { this.audits.push({ ...e }); }
+
+  conversations = new Map<string, ConversationRow>();
+  messages: MessageRow[] = [];
+  private messageSeq = 1;
+
+  async insertConversation(c: ConversationRow) { this.conversations.set(c.id, { ...c }); }
+  async listConversations(userId: string, limit: number) {
+    return [...this.conversations.values()]
+      .filter((c) => c.user_id === userId)
+      .sort((a, b) => b.updated_at - a.updated_at)
+      .slice(0, limit)
+      .map((c) => ({ ...c }));
+  }
+  async getConversation(id: string) { return this.conversations.get(id) ?? null; }
+  async touchConversation(id: string, now: number) {
+    const c = this.conversations.get(id);
+    if (c) c.updated_at = now;
+  }
+  async deleteConversation(id: string) {
+    this.conversations.delete(id);
+    this.messages = this.messages.filter((m) => m.conversation_id !== id);
+  }
+  async insertMessage(conversationId: string, role: string, content: string, now: number) {
+    this.messages.push({ id: this.messageSeq++, conversation_id: conversationId, role, content, created_at: now });
+  }
+  async listMessages(conversationId: string, limit: number) {
+    return this.messages.filter((m) => m.conversation_id === conversationId).slice(0, limit).map((m) => ({ ...m }));
+  }
 
   async hitRateLimit(scope: string, windowStart: number) {
     const k = `${scope}|${windowStart}`;

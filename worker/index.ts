@@ -73,13 +73,20 @@ function toResponse(result: { status: number; body: unknown; headers?: Record<st
   return secureHeaders(new Response(JSON.stringify(result.body), { status: result.status, headers }));
 }
 
-async function handleApiRequest(req: Request, env: Env, url: URL): Promise<Response | null> {
-  const result = await handleApi(req, env, url);
-  return result ? toResponse(result) : null;
+async function handleApiRequest(
+  req: Request,
+  env: Env,
+  url: URL,
+  executionCtx?: { waitUntil(task: Promise<unknown>): void }
+): Promise<Response | null> {
+  const result = await handleApi(req, env, url, executionCtx);
+  if (!result) return null;
+  if (result instanceof Response) return secureHeaders(result);
+  return toResponse(result);
 }
 
 const worker = {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, executionCtx: { waitUntil(task: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
@@ -91,7 +98,7 @@ const worker = {
         );
       }
       try {
-        const res = await handleApiRequest(request, env, url);
+        const res = await handleApiRequest(request, env, url, executionCtx);
         if (res) return res;
       } catch (e) {
         // Never leak internals; static site keeps working regardless.

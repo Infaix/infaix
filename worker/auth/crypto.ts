@@ -42,6 +42,11 @@ export async function sha256Hex(input: string): Promise<string> {
   return bytesToHex(new Uint8Array(digest));
 }
 
+export async function sha256HexBytes(input: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", input as BufferSource);
+  return bytesToHex(new Uint8Array(digest));
+}
+
 export const DEFAULT_PBKDF2_ITERATIONS = 210_000;
 const SALT_BYTES = 16;
 const KEY_BYTES = 32;

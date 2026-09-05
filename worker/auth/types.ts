@@ -26,6 +26,15 @@ export interface Env {
   RL_ADMIN_LIMIT?: string;
   RL_ADMIN_WINDOW?: string;
   PBKDF2_ITERATIONS?: string;
+  AI_GATEWAY_URL?: string;
+  AI_GATEWAY_SECRET?: string;
+  AI_GATEWAY_SECRET_PREVIOUS?: string;
+  AI_GATEWAY_AUDIENCE?: string;
+  AI_CHAT_USER_LIMIT?: string;
+  AI_CHAT_USER_WINDOW?: string;
+  AI_CHAT_IP_LIMIT?: string;
+  AI_CHAT_IP_WINDOW?: string;
+  AI_UPSTREAM_TIMEOUT_MS?: string;
 }
 
 // Minimal structural subset of the Cloudflare D1 API we rely on, so the
@@ -49,6 +58,7 @@ export interface UserRow {
   role: Role;
   status: AccountStatus;
   email_verified: number;
+  ai_access: number; // 0 = denied (default), 1 = granted. OWNER bypasses via logic.
   created_at: number;
   updated_at: number;
   last_login_at: number | null;
@@ -101,6 +111,22 @@ export interface AuditEvent {
   created_at: number;
 }
 
+export interface ConversationRow {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface MessageRow {
+  id: number;
+  conversation_id: string;
+  role: string;
+  content: string;
+  created_at: number;
+}
+
 /** Public user shape — the ONLY user data ever sent to clients. */
 export interface PublicUser {
   id: string;
@@ -109,6 +135,7 @@ export interface PublicUser {
   role: Role;
   status: AccountStatus;
   email_verified: boolean;
+  ai_access: boolean;
   created_at: number;
   last_login_at: number | null;
 }
@@ -121,6 +148,7 @@ export function toPublicUser(u: UserRow): PublicUser {
     role: u.role,
     status: u.status,
     email_verified: u.email_verified === 1,
+    ai_access: (u.ai_access ?? 0) === 1,
     created_at: u.created_at,
     last_login_at: u.last_login_at,
   };

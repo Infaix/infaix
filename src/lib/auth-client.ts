@@ -43,6 +43,7 @@ export interface PublicUser {
   role: "OWNER" | "ADMIN" | "USER";
   status: "ACTIVE" | "DISABLED" | "PENDING_VERIFICATION";
   email_verified: boolean;
+  ai_access: boolean;
   created_at: number;
   last_login_at: number | null;
 }

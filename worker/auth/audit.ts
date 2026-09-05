@@ -18,6 +18,10 @@ export const AUDIT_EVENTS = [
   "INVITATION_CREATED",
   "INVITATION_USED",
   "INVITATION_REVOKED",
+  "AI_ACCESS_DENIED",
+  "AI_AUTH_FAILURE",
+  "AI_REQUEST",
+  "AI_GATEWAY_FAILURE",
 ] as const;
 
 export type AuditEventName = (typeof AUDIT_EVENTS)[number];

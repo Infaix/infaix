@@ -27,6 +27,7 @@ infaix.com/about    → About (philosophy, what INFAIX is)
 infaix.com/login    → Account sign-in (invite-based identity)
 infaix.com/register → Invite-only registration
 infaix.com/account  → Protected account page (profile, password, logout)
+infaix.com/ai       → INFAIX AI (session-authenticated bridge to ai.infaix.com)
 ```
 
 ## Account system
@@ -36,6 +37,13 @@ Invite-only identity backed by the Cloudflare Worker + D1 (`worker/`,
 `HttpOnly`/`Secure`/`SameSite=Lax` cookies. Full design, flows, and
 operations: [`docs/auth.md`](docs/auth.md). Security policy:
 [`SECURITY.md`](SECURITY.md).
+
+## INFAIX AI bridge
+
+`/ai` talks to same-origin `/api/ai/*` only. The Worker authenticates the
+session, checks `AI_ACCESS`, mints a short-lived `jose` assertion, and
+proxies SSE inference from the separate `InfaixAI` gateway (`ai.infaix.com`).
+Contract and operations: [`docs/ai-architecture.md`](docs/ai-architecture.md).
 
 ## Technology Stack
 
@@ -77,25 +85,17 @@ npm test        # vitest: account-system unit tests (no network required)
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_AI_API_URL` | URL of the AI backend API (e.g. Ollama, vLLM) |
+| `AI_GATEWAY_URL` | InfaixAI gateway origin (Worker-side only, never `NEXT_PUBLIC_*`) |
 
 Copy `.env.example` to `.env.local` and configure as needed.
 
 ## AI Integration
 
-The INFAIX AI chat interface connects to a configurable backend via `NEXT_PUBLIC_AI_API_URL`. If unset, the interface shows a graceful standby state.
-
-The backend is intended to run within FORGE infrastructure using self-hosted models (Ollama, vLLM, etc.).
-
-The frontend expects an OpenAI-compatible chat completions endpoint:
-
-```
-POST {NEXT_PUBLIC_AI_API_URL}
-{
-  "messages": [
-    { "role": "user", "content": "Hello" }
-  ]
-}
+The INFAIX AI chat interface calls same-origin `/api/ai/*` on the main
+Worker, which authenticates the session, checks `AI_ACCESS`, and proxies
+streaming inference from the separate `InfaixAI` gateway. The browser never
+contacts Ollama or `ai.infaix.com` directly. See
+[`docs/ai-architecture.md`](docs/ai-architecture.md).
 ```
 
 ## Project Structure

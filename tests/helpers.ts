@@ -19,17 +19,24 @@ export interface TestWorld {
   setNow: (t: number) => void;
   advance: (ms: number) => void;
   getNow: () => number;
+  background: Promise<unknown>[];
 }
+
+export const AI_GATEWAY = "https://ai.infaix.com";
+export const AI_SECRET = "ai-gateway-shared-secret-min-32!!";
 
 export function makeWorld(envExtra: Partial<Env> = {}): TestWorld {
   const store = new MemoryStore();
   let now = 1_750_000_000_000;
+  const background: Promise<unknown>[] = [];
   const env: Env = {
     INFAIX_DB: null as unknown as D1Like,
     SESSION_SECRET: "test-session-secret-min-32-chars!!",
     ENVIRONMENT: "test",
     APP_ORIGIN: ORIGIN,
     PBKDF2_ITERATIONS: "50000",
+    AI_GATEWAY_URL: AI_GATEWAY,
+    AI_GATEWAY_SECRET: AI_SECRET,
     ...envExtra,
   };
   const ctx: HandlerContext = {
@@ -41,6 +48,10 @@ export function makeWorld(envExtra: Partial<Env> = {}): TestWorld {
     origin: ORIGIN,
     secure: true,
     mailer: new OutboxMailer(store),
+    upstreamFetch: async () => new Response("upstream not mocked", { status: 500 }),
+    waitUntil: (task) => {
+      background.push(task);
+    },
   };
   return {
     ctx,
@@ -52,7 +63,13 @@ export function makeWorld(envExtra: Partial<Env> = {}): TestWorld {
       now += ms;
     },
     getNow: () => now,
+    background,
   };
+}
+
+export async function drainBackground(w: TestWorld): Promise<void> {
+  const pending = w.background.splice(0);
+  await Promise.all(pending.map((p) => p.catch(() => undefined)));
 }
 
 export function post(path: string, body: unknown, cookie?: string, origin = ORIGIN): Request {

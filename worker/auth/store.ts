@@ -2,8 +2,10 @@
 // implementation for tests. No raw SQL outside this file (except schema).
 import type {
   AuditEvent,
+  ConversationRow,
   D1Like,
   InvitationRow,
+  MessageRow,
   ResetRow,
   Role,
   SessionRow,
@@ -16,6 +18,7 @@ export interface UserUpdate {
   display_name?: string;
   status?: UserRow["status"];
   email_verified?: number;
+  ai_access?: number;
   role?: Role;
   updated_at: number;
   last_login_at?: number | null;
@@ -54,6 +57,14 @@ export interface Store {
   claimVerification(id: string, now: number): Promise<boolean>;
   expireVerifications(now: number): Promise<number>;
   expireUserVerifications(userId: string): Promise<void>;
+  // conversations
+  insertConversation(c: ConversationRow): Promise<void>;
+  listConversations(userId: string, limit: number): Promise<ConversationRow[]>;
+  getConversation(id: string): Promise<ConversationRow | null>;
+  touchConversation(id: string, now: number): Promise<void>;
+  deleteConversation(id: string): Promise<void>;
+  insertMessage(conversationId: string, role: string, content: string, now: number): Promise<void>;
+  listMessages(conversationId: string, limit: number): Promise<MessageRow[]>;
   // audit
   insertAudit(e: AuditEvent): Promise<void>;
   // rate limiting
@@ -77,9 +88,9 @@ export class D1Store implements Store {
   async insertUser(u: UserRow): Promise<void> {
     await this.db
       .prepare(
-        "INSERT INTO users (id, email, password_hash, display_name, role, status, email_verified, created_at, updated_at, last_login_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO users (id, email, password_hash, display_name, role, status, email_verified, ai_access, created_at, updated_at, last_login_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
-      .bind(u.id, u.email, u.password_hash, u.display_name, u.role, u.status, u.email_verified, u.created_at, u.updated_at, u.last_login_at)
+      .bind(u.id, u.email, u.password_hash, u.display_name, u.role, u.status, u.email_verified, u.ai_access ?? 0, u.created_at, u.updated_at, u.last_login_at)
       .run();
   }
   async updateUser(id: string, patch: UserUpdate): Promise<boolean> {
@@ -207,6 +218,43 @@ export class D1Store implements Store {
       .prepare("INSERT INTO audit_log (event, actor_user_id, target_user_id, ip, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)")
       .bind(e.event, e.actor_user_id, e.target_user_id, e.ip, e.detail, e.created_at)
       .run();
+  }
+
+  async insertConversation(c: ConversationRow): Promise<void> {
+    await this.db
+      .prepare("INSERT INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(c.id, c.user_id, c.title, c.created_at, c.updated_at)
+      .run();
+  }
+  async listConversations(userId: string, limit: number): Promise<ConversationRow[]> {
+    const r = await this.db
+      .prepare("SELECT * FROM conversations WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?")
+      .bind(userId, limit)
+      .all<ConversationRow>();
+    return r.results;
+  }
+  async getConversation(id: string): Promise<ConversationRow | null> {
+    return this.db.prepare("SELECT * FROM conversations WHERE id = ?").bind(id).first<ConversationRow>();
+  }
+  async touchConversation(id: string, now: number): Promise<void> {
+    await this.db.prepare("UPDATE conversations SET updated_at = ? WHERE id = ?").bind(now, id).run();
+  }
+  async deleteConversation(id: string): Promise<void> {
+    await this.db.prepare("DELETE FROM messages WHERE conversation_id = ?").bind(id).run();
+    await this.db.prepare("DELETE FROM conversations WHERE id = ?").bind(id).run();
+  }
+  async insertMessage(conversationId: string, role: string, content: string, now: number): Promise<void> {
+    await this.db
+      .prepare("INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)")
+      .bind(conversationId, role, content, now)
+      .run();
+  }
+  async listMessages(conversationId: string, limit: number): Promise<MessageRow[]> {
+    const r = await this.db
+      .prepare("SELECT * FROM messages WHERE conversation_id = ? ORDER BY id ASC LIMIT ?")
+      .bind(conversationId, limit)
+      .all<MessageRow>();
+    return r.results;
   }
 
   async hitRateLimit(scope: string, windowStart: number): Promise<number> {

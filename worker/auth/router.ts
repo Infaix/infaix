@@ -1,6 +1,12 @@
 // /api/* routing for the account system. Used by worker/index.ts and
 // importable in tests.
 import {
+  handleAiChat,
+  handleAiConversation,
+  handleAiConversations,
+  handleAiModels,
+} from "./ai";
+import {
   handleChangePassword,
   handleCreateInvite,
   handleListInvites,
@@ -22,7 +28,11 @@ import { mailerFor } from "./mailer";
 import { D1Store } from "./store";
 import type { Env } from "./types";
 
-export function apiContext(req: Request, env: Env, url: URL): HandlerContext {
+export interface ExecutionCtx {
+  waitUntil(task: Promise<unknown>): void;
+}
+
+export function apiContext(req: Request, env: Env, url: URL, executionCtx?: ExecutionCtx): HandlerContext {
   const store = new D1Store(env.INFAIX_DB);
   return {
     store,
@@ -33,14 +43,16 @@ export function apiContext(req: Request, env: Env, url: URL): HandlerContext {
     origin: url.origin,
     secure: url.protocol === "https:",
     mailer: mailerFor(store, env.ENVIRONMENT),
+    waitUntil: executionCtx ? (task) => executionCtx.waitUntil(task) : undefined,
   };
 }
 
-/** Returns null when the path is not an API route. */
-export async function handleApi(req: Request, env: Env, url: URL): Promise<HandlerResult | null> {
+/** Returns null when the path is not an API route. Handlers may return a
+ * HandlerResult (JSON) or a raw Response (streaming). */
+export async function handleApi(req: Request, env: Env, url: URL, executionCtx?: ExecutionCtx): Promise<HandlerResult | Response | null> {
   const path = url.pathname;
   if (!path.startsWith("/api/")) return null;
-  const ctx = apiContext(req, env, url);
+  const ctx = apiContext(req, env, url, executionCtx);
   const method = req.method.toUpperCase();
 
   if (method === "GET" && path === "/api/auth/me") return handleMe(ctx, req);
@@ -65,6 +77,15 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Handl
   if (method === "POST" && disable) return handleSetUserStatus(ctx, req, disable[1], "DISABLED");
   const enable = /^\/api\/admin\/users\/([^/]+)\/enable$/.exec(path);
   if (method === "POST" && enable) return handleSetUserStatus(ctx, req, enable[1], "ACTIVE");
+
+  // AI bridge (session auth + AI_ACCESS enforced inside handlers).
+  if (method === "GET" && path === "/api/ai/models") return handleAiModels(ctx, req);
+  if (method === "POST" && path === "/api/ai/chat") return handleAiChat(ctx, req);
+  if (path === "/api/ai/conversations" && (method === "GET" || method === "POST")) {
+    return handleAiConversations(ctx, req);
+  }
+  const convo = /^\/api\/ai\/conversations\/([^/]+)$/.exec(path);
+  if (convo && (method === "GET" || method === "DELETE")) return handleAiConversation(ctx, req, convo[1]);
 
   return { status: 404, body: { error: { code: "NOT_FOUND", message: "Not found." } } };
 }
