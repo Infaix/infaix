@@ -106,12 +106,13 @@ export default function AIChat() {
           <div className="value">FORGE</div>
         </div>
         <div className="ai-status-item">
-          <label>STATUS</label>
+          <label>Status</label>
           <div
             className={`value ${
               AI_API_URL ? "ai-status-online" : "ai-status-offline"
             }`}
           >
+            {AI_API_URL && <span className="ai-pulse" aria-hidden="true" />}
             {STATUS_LABEL}
           </div>
         </div>

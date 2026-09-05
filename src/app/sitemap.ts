@@ -7,6 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: base, lastModified: new Date() },
     { url: `${base}/forge`, lastModified: new Date() },
+    { url: `${base}/forge/projects`, lastModified: new Date() },
     { url: `${base}/forge/projects/toolboxhq`, lastModified: new Date() },
     { url: `${base}/ai`, lastModified: new Date() },
     { url: `${base}/about`, lastModified: new Date() },

@@ -17,13 +17,13 @@ export const metadata: Metadata = {
 };
 
 const infraItems = [
-  { label: "COMPUTE", desc: "Processing and compute resources." },
-  { label: "NETWORK", desc: "Internal and external networking." },
-  { label: "STORAGE", desc: "Persistent data and file systems." },
-  { label: "AI", desc: "Self-hosted model inference and pipelines." },
-  { label: "CI/CD", desc: "Automated build and deployment." },
-  { label: "FABRICATION", desc: "Hardware prototyping and assembly." },
-  { label: "BENCH", desc: "Testing and experimentation surface." },
+  { label: "COMPUTE", desc: "Processing and compute resources.", glyph: "▣" },
+  { label: "NETWORK", desc: "Internal and external networking.", glyph: "⌁" },
+  { label: "STORAGE", desc: "Persistent data and file systems.", glyph: "▤" },
+  { label: "AI", desc: "Self-hosted model inference and pipelines.", glyph: "✦" },
+  { label: "CI/CD", desc: "Automated build and deployment.", glyph: "◉" },
+  { label: "FABRICATION", desc: "Hardware prototyping and assembly.", glyph: "⬢" },
+  { label: "BENCH", desc: "Testing and experimentation surface.", glyph: "◈" },
 ];
 
 export default function ForgePage() {
@@ -35,7 +35,7 @@ export default function ForgePage() {
         <section className="page-hero">
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">INFRASTRUCTURE</div>
+              <div className="section-label">Infrastructure</div>
               <h1>FORGE</h1>
               <p>
                 The technical creation environment behind INFAIX. Where
@@ -47,44 +47,54 @@ export default function ForgePage() {
         </section>
 
         {/* Infrastructure */}
-        <section className="section-pad">
+        <section className="section-pad" style={{ paddingTop: 20 }}>
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">INFRASTRUCTURE</div>
+              <div className="section-label">Infrastructure</div>
             </ScrollReveal>
-            {infraItems.map((item) => (
-              <ScrollReveal key={item.label}>
-                <div className="cat-row">
-                  <div className="cat-title">{item.label}</div>
-                  <div className="cat-desc">{item.desc}</div>
-                </div>
-              </ScrollReveal>
-            ))}
+            <ScrollReveal>
+              <ul className="forge-list" style={{ borderTop: "1px solid var(--border)" }}>
+                {infraItems.map((item) => (
+                  <li key={item.label}>
+                    <span className="fl-icon" aria-hidden="true">{item.glyph}</span>
+                    <span className="fl-name">{item.label}</span>
+                    <span className="fl-desc">{item.desc}</span>
+                  </li>
+                ))}
+              </ul>
+            </ScrollReveal>
           </div>
         </section>
 
         {/* Projects */}
-        <section className="section-pad">
+        <section className="section-pad" style={{ paddingTop: 20 }}>
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">PROJECTS</div>
+              <div className="section-label">Projects</div>
             </ScrollReveal>
             <ScrollReveal>
               <Link href="/forge/projects/toolboxhq" className="project-card" style={{ display: "block" }}>
-                <div className="project-status">LIVE</div>
+                <div className="project-status">Live</div>
                 <h3>ToolboxHQ</h3>
                 <p>Practical developer, file and utility tools built for the web.</p>
-                <div className="project-meta">SOFTWARE / TOOLING / ACTIVE</div>
+                <div className="project-meta">Software / Tooling / Active</div>
               </Link>
+            </ScrollReveal>
+            <ScrollReveal>
+              <div style={{ marginTop: 24 }}>
+                <Link href="/forge/projects" className="btn-quiet">
+                  View all projects <span>&rarr;</span>
+                </Link>
+              </div>
             </ScrollReveal>
           </div>
         </section>
 
         {/* Lab */}
-        <section className="section-pad">
+        <section className="section-pad" style={{ paddingTop: 20 }}>
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">LAB</div>
+              <div className="section-label">Lab</div>
             </ScrollReveal>
             <ScrollReveal>
               <div className="cat-row" style={{ borderBottom: "1px solid var(--border)" }}>
@@ -99,10 +109,10 @@ export default function ForgePage() {
         </section>
 
         {/* Experiments */}
-        <section className="section-pad">
+        <section className="section-pad" style={{ paddingTop: 20 }}>
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">EXPERIMENTS</div>
+              <div className="section-label">Experiments</div>
             </ScrollReveal>
             <div className="cat-row">
               <div className="cat-title">EXPLORING</div>
@@ -111,7 +121,7 @@ export default function ForgePage() {
                   Robotics, wearable interaction, AI systems, embedded
                   hardware and experimental technology.
                 </div>
-                <div className="cat-status">RESEARCH</div>
+                <div className="cat-status">Research</div>
               </div>
             </div>
           </div>

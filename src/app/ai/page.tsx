@@ -23,8 +23,13 @@ export default function AIPage() {
       <main>
         <section className="page-hero">
           <div className="container">
+            <div className="section-label">Forge // Intelligence interface</div>
             <h1>INFAIX AI</h1>
-            <p>An AI running inside FORGE.</p>
+            <p>
+              An interface into intelligence running inside FORGE.
+              Self-hosted inference, local models, and custom pipelines —
+              connected through the same environment that builds everything else.
+            </p>
           </div>
         </section>
 
