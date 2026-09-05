@@ -37,6 +37,10 @@ server.log
 .env.test.local
 .env.production.local
 !.env.example
+.dev.vars
+
+# cloudflare / wrangler
+.wrangler
 
 # vercel
 .vercel
