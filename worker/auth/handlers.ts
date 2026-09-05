@@ -3,10 +3,11 @@
 // Every handler: validate input -> rate limit -> authorize -> mutate ->
 // audit. Error messages never reveal account existence or secrets.
 import { audit } from "./audit";
+import { checkRequestOrigin } from "./cors";
 import { hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
 import { flowLink, type Mailer } from "./mailer";
 import { checkRateLimit, limitFromEnv } from "./ratelimit";
-import { buildClearCookie, createSession, verifySession } from "./sessions";
+import { buildClearCookie, cookieScope, createSession, verifySession } from "./sessions";
 import type { Store } from "./store";
 import {
   toPublicUser,
@@ -64,19 +65,8 @@ async function readJson(req: Request): Promise<Record<string, unknown> | null> {
   }
 }
 
-/** Same-origin check for cookie-authenticated POSTs (CSRF layer). */
-function sameOrigin(req: Request, origin: string): boolean {
-  const o = req.headers.get("origin");
-  if (o) return o === origin;
-  const r = req.headers.get("referer");
-  if (r) return r.startsWith(origin + "/") || r === origin;
-  return true;
-}
-
-// ---------------------------------------------------------------- register
-
 export async function handleRegister(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const rl = limitFromEnv(ctx.env, "RL_REGISTER_LIMIT", "RL_REGISTER_WINDOW", 10, 3600);
   const gate = await checkRateLimit(ctx.store, `register:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
@@ -152,7 +142,7 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
 // ---------------------------------------------------------------- login
 
 export async function handleLogin(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const rl = limitFromEnv(ctx.env, "RL_LOGIN_LIMIT", "RL_LOGIN_WINDOW", 10, 600);
   const ipGate = await checkRateLimit(ctx.store, `login:ip:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!ipGate.allowed) {
@@ -200,7 +190,7 @@ export async function handleLogin(ctx: HandlerContext, req: Request): Promise<Ha
 // ---------------------------------------------------------------- logout
 
 export async function handleLogout(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   // Always clear the cookie; invalidate server-side when resolvable.
   const authed = await verifySession(
     { store: ctx.store, env: ctx.env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure },
@@ -210,7 +200,7 @@ export async function handleLogout(ctx: HandlerContext, req: Request): Promise<H
     await ctx.store.deleteSession(authed.sessionId);
     await audit(ctx.store, "LOGOUT", { actor: authed.user.id, target: authed.user.id, ip: ctx.ip, now: ctx.now() });
   }
-  return json({ ok: true }, 200, { "set-cookie": buildClearCookie(ctx.secure) });
+  return json({ ok: true }, 200, { "set-cookie": buildClearCookie(ctx.secure, cookieScope(ctx.env)) });
 }
 
 // ---------------------------------------------------------------- me
@@ -221,13 +211,14 @@ export async function handleMe(ctx: HandlerContext, req: Request): Promise<Handl
     req.headers.get("cookie")
   );
   if (!authed) return err("UNAUTHENTICATED", "Not signed in.", 401);
-  return json({ user: toPublicUser(authed.user) });
+  const user = toPublicUser(authed.user);
+  return json({ authenticated: true, user, ai: { enabled: user.role === "OWNER" || user.ai_access } });
 }
 
 // ---------------------------------------------------------------- change password
 
 export async function handleChangePassword(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const authed = await verifySession(
     { store: ctx.store, env: ctx.env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure },
     req.headers.get("cookie")
@@ -261,7 +252,7 @@ export async function handleChangePassword(ctx: HandlerContext, req: Request): P
 // ---------------------------------------------------------------- profile
 
 export async function handleUpdateProfile(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const authed = await verifySession(
     { store: ctx.store, env: ctx.env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure },
     req.headers.get("cookie")
@@ -280,7 +271,7 @@ export async function handleUpdateProfile(ctx: HandlerContext, req: Request): Pr
 // ---------------------------------------------------------------- password reset
 
 export async function handleRequestPasswordReset(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const rl = limitFromEnv(ctx.env, "RL_RESET_LIMIT", "RL_RESET_WINDOW", 5, 3600);
   const gate = await checkRateLimit(ctx.store, `reset:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) {
@@ -311,7 +302,7 @@ export async function handleRequestPasswordReset(ctx: HandlerContext, req: Reque
 }
 
 export async function handleResetPassword(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const rl = limitFromEnv(ctx.env, "RL_RESET_LIMIT", "RL_RESET_WINDOW", 5, 3600);
   const gate = await checkRateLimit(ctx.store, `reset-use:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) {
@@ -345,7 +336,7 @@ export async function handleResetPassword(ctx: HandlerContext, req: Request): Pr
 // ---------------------------------------------------------------- email verification
 
 export async function handleRequestVerification(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const rl = limitFromEnv(ctx.env, "RL_VERIFY_LIMIT", "RL_VERIFY_WINDOW", 10, 3600);
   const gate = await checkRateLimit(ctx.store, `verify-send:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) {
@@ -375,7 +366,7 @@ export async function handleRequestVerification(ctx: HandlerContext, req: Reques
 }
 
 export async function handleVerifyEmail(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const rl = limitFromEnv(ctx.env, "RL_VERIFY_LIMIT", "RL_VERIFY_WINDOW", 10, 3600);
   const gate = await checkRateLimit(ctx.store, `verify-use:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) {
@@ -425,7 +416,7 @@ async function adminAuth(ctx: HandlerContext, req: Request): Promise<AdminAuth> 
 const ADMIN_ROLES: Role[] = ["OWNER", "ADMIN", "USER"];
 
 export async function handleCreateInvite(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const rl = limitFromEnv(ctx.env, "RL_ADMIN_LIMIT", "RL_ADMIN_WINDOW", 30, 3600);
   const gate = await checkRateLimit(ctx.store, `admin-invite:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) {
@@ -498,7 +489,7 @@ export async function handleListInvites(ctx: HandlerContext, req: Request): Prom
 }
 
 export async function handleRevokeInvite(ctx: HandlerContext, req: Request, id: string): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const auth = await adminAuth(ctx, req);
   if (!auth.ok) return auth.result;
   if (!/^inv_[0-9a-f]{24}$/.test(id)) return err("NOT_FOUND", "Invitation not found.", 404);
@@ -514,7 +505,7 @@ export async function handleSetUserStatus(
   id: string,
   status: "DISABLED" | "ACTIVE"
 ): Promise<HandlerResult> {
-  if (!sameOrigin(req, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   // Destructive: session admins only, never the bootstrap token.
   const authed = await verifySession(
     { store: ctx.store, env: ctx.env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure },

@@ -4,6 +4,7 @@
 // variants, RSC payload alias). /api/* requests are handled by the
 // account system in ./auth (D1 + Web Crypto, no external dependencies).
 import { handleApi } from "./auth/router";
+import { corsHeaders, handlePreflight } from "./auth/cors";
 import type { Env } from "./auth/types";
 
 // Maps a flat RSC payload request (client form) to the nested file path
@@ -56,15 +57,38 @@ function withCacheHeaders(pathname: string, res: Response): Response {
 }
 
 function secureHeaders(res: Response): Response {
-  // nosniff only: safe for every content type we serve, breaks nothing.
-  if (res.headers.has("x-content-type-options")) return res;
+  // nosniff everywhere (safe for all content types) plus a non-breaking
+  // referrer policy. No CSP/HSTS here: CSP needs per-build script-hash
+  // validation against the Next.js export, and HSTS is managed at the
+  // Cloudflare edge — both documented in docs/authentication.md.
   const headers = new Headers(res.headers);
-  headers.set("X-Content-Type-Options", "nosniff");
+  if (!headers.has("x-content-type-options")) headers.set("X-Content-Type-Options", "nosniff");
+  if (!headers.has("referrer-policy")) headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   return new Response(res.body, {
     status: res.status,
     statusText: res.statusText,
     headers,
   });
+}
+
+/** Attach validated CORS headers (allowlisted origin + credentials). */
+function withCors(req: Request, env: Env, workerOrigin: string, res: Response): Response {
+  const cors = corsHeaders(req, env, workerOrigin);
+  if (!Object.keys(cors).length) return res;
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(cors)) {
+    if (!headers.has(k)) headers.set(k, v);
+  }
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
+}
+
+/** Production refuses to serve the API without a real session secret. */
+function sessionSecretValid(env: Env): boolean {
+  return !!env.SESSION_SECRET && env.SESSION_SECRET.length >= 32;
 }
 
 function toResponse(result: { status: number; body: unknown; headers?: Record<string, string> }): Response {
@@ -81,8 +105,8 @@ async function handleApiRequest(
 ): Promise<Response | null> {
   const result = await handleApi(req, env, url, executionCtx);
   if (!result) return null;
-  if (result instanceof Response) return secureHeaders(result);
-  return toResponse(result);
+  const res = result instanceof Response ? result : toResponse(result);
+  return withCors(req, env, url.origin, secureHeaders(res));
 }
 
 const worker = {
@@ -92,9 +116,16 @@ const worker = {
 
     // Account API takes precedence over static files under /api/.
     if (pathname.startsWith("/api/")) {
-      if (!env.INFAIX_DB) {
+      const preflight = handlePreflight(request, env, url.origin);
+      if (preflight) return secureHeaders(preflight);
+      if (!env.INFAIX_DB || (env.ENVIRONMENT === "production" && !sessionSecretValid(env))) {
         return secureHeaders(
-          Response.json({ error: { code: "AUTH_UNAVAILABLE", message: "Authentication is temporarily unavailable." } }, { status: 503 })
+          withCors(
+            request,
+            env,
+            url.origin,
+            Response.json({ error: { code: "AUTH_UNAVAILABLE", message: "Authentication is temporarily unavailable." } }, { status: 503 })
+          )
         );
       }
       try {
@@ -103,7 +134,14 @@ const worker = {
       } catch (e) {
         // Never leak internals; static site keeps working regardless.
         console.error("api error", e instanceof Error ? e.message : "unknown");
-        return secureHeaders(Response.json({ error: { code: "INTERNAL", message: "Something went wrong." } }, { status: 500 }));
+        return secureHeaders(
+          withCors(
+            request,
+            env,
+            url.origin,
+            Response.json({ error: { code: "INTERNAL", message: "Something went wrong." } }, { status: 500 })
+          )
+        );
       }
     }
 

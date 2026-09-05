@@ -1,12 +1,31 @@
 // Session management: opaque random tokens, SHA-256 hashes at rest,
 // HttpOnly cookies. Rotation on login defeats fixation (a fresh token is
 // always minted; any presented token is ignored for the new session).
-import { hmacSign, randomToken, sha256Hex } from "./crypto";
+//
+// Cookie scope is environment-dependent:
+// - production: Domain=.infaix.com, SameSite=None, Secure — shared by
+//   infaix.com and ai.infaix.com (see docs/authentication.md for the CSRF
+//   model that makes SameSite=None safe).
+// - development/test: host-only, SameSite=Lax (localhost cannot use a
+//   shared parent domain or Secure-over-http cookies).
+import { hmacSign, hmacVerify, randomToken, sha256Hex } from "./crypto";
 import type { Store } from "./store";
 import type { Env, UserRow } from "./types";
 
 export const SESSION_COOKIE = "infaix_session";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+export interface CookieScope {
+  domain?: string;
+  sameSite: "Lax" | "None";
+}
+
+export function cookieScope(env: Env): CookieScope {
+  if (env.ENVIRONMENT === "production") {
+    return { domain: env.COOKIE_DOMAIN ?? ".infaix.com", sameSite: "None" };
+  }
+  return { sameSite: "Lax" };
+}
 
 export interface SessionContext {
   store: Store;
@@ -35,12 +54,10 @@ export async function unsignToken(env: Env, signed: string): Promise<string | nu
   if (dot <= 0) return null;
   const token = signed.slice(0, dot);
   const sig = signed.slice(dot + 1);
-  if (!/^[0-9a-f]{64}$/.test(sig)) return null;
-  const expected = await hmacSign(secret, token);
-  if (expected.length !== sig.length) return null;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
-  return diff === 0 ? token : null;
+  // hmacVerify enforces format + constant-time comparison. Any failure —
+  // missing/foreign secret, malformed or tampered value — fails closed.
+  if (!(await hmacVerify(secret, token, sig))) return null;
+  return token;
 }
 
 export function parseSessionCookie(header: string | null): string | null {
@@ -55,15 +72,18 @@ export function parseSessionCookie(header: string | null): string | null {
   return null;
 }
 
-export function buildSetCookie(signed: string, secure: boolean, maxAgeSec: number): string {
-  let c = `${SESSION_COOKIE}=${encodeURIComponent(signed)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}`;
-  if (secure) c += "; Secure";
+export function buildSetCookie(signed: string, secure: boolean, maxAgeSec: number, scope: CookieScope): string {
+  let c = `${SESSION_COOKIE}=${encodeURIComponent(signed)}; Path=/; HttpOnly; SameSite=${scope.sameSite}; Max-Age=${maxAgeSec}`;
+  if (scope.domain) c += `; Domain=${scope.domain}`;
+  if (secure || scope.sameSite === "None") c += "; Secure";
   return c;
 }
 
-export function buildClearCookie(secure: boolean): string {
-  let c = `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
-  if (secure) c += "; Secure";
+export function buildClearCookie(secure: boolean, scope: CookieScope): string {
+  // Domain must match the set-cookie or the browser keeps the real cookie.
+  let c = `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=${scope.sameSite}; Max-Age=0`;
+  if (scope.domain) c += `; Domain=${scope.domain}`;
+  if (secure || scope.sameSite === "None") c += "; Secure";
   return c;
 }
 
@@ -91,7 +111,7 @@ export async function createSession(ctx: SessionContext, userId: string): Promis
     user_agent: ctx.userAgent ? ctx.userAgent.slice(0, 200) : null,
   });
   return {
-    setCookie: buildSetCookie(signature, ctx.secure, Math.floor(SESSION_TTL_MS / 1000)),
+    setCookie: buildSetCookie(signature, ctx.secure, Math.floor(SESSION_TTL_MS / 1000), cookieScope(ctx.env)),
     sessionId,
     expiresAt,
   };

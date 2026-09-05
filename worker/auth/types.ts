@@ -35,6 +35,10 @@ export interface Env {
   AI_CHAT_IP_LIMIT?: string;
   AI_CHAT_IP_WINDOW?: string;
   AI_UPSTREAM_TIMEOUT_MS?: string;
+  /** Parent-domain cookie scope in production (default ".infaix.com"). */
+  COOKIE_DOMAIN?: string;
+  /** Comma-separated extra allowed CORS origins (additive, https recommended). */
+  CORS_EXTRA_ORIGINS?: string;
 }
 
 // Minimal structural subset of the Cloudflare D1 API we rely on, so the

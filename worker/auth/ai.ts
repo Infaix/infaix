@@ -5,7 +5,9 @@
 // return HandlerResults for the shared router.
 import { gatewaySecrets, mintAiAssertion, requestBinding } from "./assertion";
 import { audit } from "./audit";
+import { checkRequestOrigin } from "./cors";
 import { newId } from "./crypto";
+import { canUseInfaixAI } from "./entitlement";
 import type { HandlerContext, HandlerResult } from "./handlers";
 import { checkRateLimit, limitFromEnv } from "./ratelimit";
 import { verifySession } from "./sessions";
@@ -56,7 +58,7 @@ interface AiAuth {
   user: UserRow;
 }
 
-/** Session + ACTIVE + AI_ACCESS. OWNER bypasses the grant; all else need ai_access = 1. */
+/** Session + ACTIVE + AI_ACCESS via the single entitlement function. */
 async function requireAiAccess(
   ctx: HandlerContext,
   req: Request,
@@ -70,8 +72,7 @@ async function requireAiAccess(
     await audit(ctx.store, "AI_AUTH_FAILURE", { ip: ctx.ip, detail: `rid:${requestId} unauthenticated`, now: ctx.now() });
     return { ok: false, response: jsonError("UNAUTHENTICATED", "Not signed in.", 401, requestId) };
   }
-  const allowed = authed.user.role === "OWNER" || (authed.user.ai_access ?? 0) === 1;
-  if (!allowed) {
+  if (!(await canUseInfaixAI(ctx.store, authed.user.id))) {
     await audit(ctx.store, "AI_ACCESS_DENIED", {
       actor: authed.user.id,
       target: authed.user.id,
@@ -84,13 +85,6 @@ async function requireAiAccess(
   return { ok: true, auth: { user: authed.user } };
 }
 
-function sameOrigin(req: Request, origin: string): boolean {
-  const o = req.headers.get("origin");
-  if (o) return o === origin;
-  const r = req.headers.get("referer");
-  if (r) return r.startsWith(origin + "/") || r === origin;
-  return true;
-}
 
 // ---------------------------------------------------------------- models
 
@@ -103,7 +97,7 @@ export async function handleAiModels(ctx: HandlerContext, req: Request): Promise
   if (!authed) return jsonError("UNAUTHENTICATED", "Not signed in.", 401, requestId);
   return Response.json({
     models: LOGICAL_MODELS.map((m) => ({ ...m })),
-    ai_access: authed.user.role === "OWNER" || (authed.user.ai_access ?? 0) === 1,
+    ai_access: await canUseInfaixAI(ctx.store, authed.user.id),
     requestId,
   });
 }
@@ -189,7 +183,7 @@ export async function handleAiChat(ctx: HandlerContext, req: Request): Promise<R
     ...extra,
   });
 
-  if (!sameOrigin(req, ctx.origin)) {
+  if (!checkRequestOrigin(req, ctx.env, ctx.origin)) {
     return jsonError("FORBIDDEN", "Forbidden.", 403, requestId);
   }
   const gate = await requireAiAccess(ctx, req, requestId);

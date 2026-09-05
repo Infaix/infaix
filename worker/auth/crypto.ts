@@ -115,3 +115,25 @@ export async function hmacSign(secret: string, data: string): Promise<string> {
   const sig = await crypto.subtle.sign("HMAC", key, te.encode(data));
   return bytesToHex(new Uint8Array(sig));
 }
+
+/**
+ * Timing-safe HMAC verification via WebCrypto (constant-time compare in
+ * the platform implementation — never plain string equality).
+ */
+export async function hmacVerify(secret: string, data: string, sigHex: string): Promise<boolean> {
+  if (!/^[0-9a-f]{64}$/.test(sigHex)) return false;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    te.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+  const sig = new Uint8Array(sigHex.length / 2);
+  for (let i = 0; i < sig.length; i++) sig[i] = parseInt(sigHex.slice(i * 2, i * 2 + 2), 16);
+  try {
+    return await crypto.subtle.verify("HMAC", key, sig as BufferSource, te.encode(data));
+  } catch {
+    return false;
+  }
+}
