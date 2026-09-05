@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+
+// useLayoutEffect runs before browser paint, so the `.js` gate class is
+// applied without a flash of visible text — but only when React is actually
+// running. If JS fails to load/hydrate, the class is never added and all
+// content stays visible (progressive enhancement).
+const useIsoLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export default function ScrollReveal({
   children,
@@ -13,9 +20,11 @@ export default function ScrollReveal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useIsoLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+
+    document.documentElement.classList.add("js");
 
     if (!("IntersectionObserver" in window)) {
       el.classList.add("in-view");

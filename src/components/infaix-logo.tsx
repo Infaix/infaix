@@ -2,12 +2,14 @@ import Image from "next/image";
 
 type LogoVariant = "navbar" | "hero" | "footer" | "mark" | "hero-illuminated";
 
+// Official asset is 202x505 (tall crystal). Sizes below preserve that
+// aspect ratio exactly — never stretch or squash the mark.
 const SIZES: Record<LogoVariant, { width: number; height: number }> = {
-  navbar: { width: 30, height: 30 },
-  hero: { width: 120, height: 120 },
-  "hero-illuminated": { width: 150, height: 150 },
-  footer: { width: 34, height: 34 },
-  mark: { width: 22, height: 22 },
+  navbar: { width: 14, height: 34 },
+  hero: { width: 74, height: 186 },
+  "hero-illuminated": { width: 74, height: 186 },
+  footer: { width: 14, height: 34 },
+  mark: { width: 10, height: 24 },
 };
 
 /**
