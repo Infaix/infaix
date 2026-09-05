@@ -156,7 +156,7 @@ function ForgeDiagram() {
       {[[110, 130], [350, 130], [110, 210], [350, 210], [355, 170]].map(([x, y], i) => (
         <circle key={i} cx={x} cy={y} r="3" fill="#B36BFF" opacity="0.85" />
       ))}
-      <polygon points="372,166 380,170 372,174" fill="#B36BFF" opacity="0.9" />
+      <polygon points="345,166 353,170 345,174" fill="#B36BFF" opacity="0.9" />
     </svg>
   );
 }
