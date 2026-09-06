@@ -133,7 +133,23 @@ const worker = {
         if (res) return res;
       } catch (e) {
         // Never leak internals; static site keeps working regardless.
-        console.error("api error", e instanceof Error ? e.message : "unknown");
+        // TEMPORARY PROD DIAGNOSTIC (register 500) — remove immediately after
+        // the exception is retrieved from Cloudflare logs. Logs error identity
+        // only: name, message, stack head. Never request bodies, passwords,
+        // secrets, session/invitation/reset tokens, or password hashes. The
+        // HTTP response below is unchanged.
+        if (pathname === "/api/auth/register") {
+          const errName = e instanceof Error ? e.name : typeof e;
+          const errMessage = e instanceof Error ? e.message : "unknown";
+          const errStack =
+            e instanceof Error && typeof e.stack === "string" ? e.stack.slice(0, 2000) : null;
+          console.error(
+            "api error",
+            JSON.stringify({ where: pathname, name: errName, message: errMessage, stack: errStack })
+          );
+        } else {
+          console.error("api error", e instanceof Error ? e.message : "unknown");
+        }
         return secureHeaders(
           withCors(
             request,
