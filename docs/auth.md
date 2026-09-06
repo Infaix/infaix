@@ -106,8 +106,10 @@ OWNER sessions — never the bootstrap token, never `ADMIN` sessions:
   (unknown fields rejected). Self-modification is rejected.
 - Every mutation audits `AI_ACCESS_ENABLED` / `AI_ACCESS_DISABLED` with
   actor + target, and is covered by the admin rate limit.
-- First OWNER: create via `scripts/new-invite.mjs --role OWNER`
-  (bootstrap token is invite-scoped and cannot touch these endpoints).
+- First OWNER: run `npm run auth:bootstrap-owner` (fixed owner identity,
+  interactive no-echo password, invite→register→verify→login via the existing
+  API; `scripts/new-invite.mjs --role OWNER` remains the manual equivalent).
+  The bootstrap token is invite-scoped and cannot touch these endpoints.
 
 ## Audit log
 
