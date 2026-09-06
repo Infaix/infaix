@@ -29,7 +29,7 @@ Key files:
 | `worker/auth/sessions.ts` | Session mint/verify, signed cookies |
 | `worker/auth/ratelimit.ts` | D1-backed sliding-window limits |
 | `worker/auth/audit.ts` | Security audit events |
-| `worker/auth/mailer.ts` | Email abstraction (outbox in dev, null in prod) |
+| `worker/auth/mailer.ts` | Email abstraction (deterministic outbox in dev/test, Resend in production) |
 | `db/migrations/0001_init.sql` | D1 schema |
 | `scripts/new-invite.mjs` | One-time invite generator (prints SQL + URL) |
 | `src/app/login|register|account|forgot-password|reset-password|verify-email` | Static auth pages (INFAIX styling) |
@@ -73,10 +73,11 @@ dummy verify so timing reveals nothing.
 
 Single-use, hashed-at-rest, expiring tokens (reset 1h, verification 24h).
 Request endpoints always return neutral `200` (no enumeration). Links are
-emailed via the `Mailer` abstraction; without a provider, non-production
-environments record them in the dev `email_outbox` table (test aid — see
-`docs/auth.md`). Production without a provider sends nothing (documented gap
-until a provider is wired in `worker/auth/mailer.ts`).
+emailed via the `Mailer` abstraction. Non-production environments record them
+in the deterministic `email_outbox` test aid. Production uses Resend only when
+`EMAIL_PROVIDER=resend`, `EMAIL_FROM`, and the `RESEND_API_KEY` runtime secret
+are configured; registration fails before claiming an invite if delivery is
+unavailable.
 
 ## Rate limiting / CSRF / headers
 
@@ -128,10 +129,11 @@ npm test             # 49 vitest unit tests (no network)
 D1 setup (once): `wrangler d1 create infaix-db`, paste the id into
 `wrangler.jsonc`, `wrangler d1 execute infaix-db --file=db/migrations/0001_init.sql`,
 `wrangler secret put SESSION_SECRET`, optionally `wrangler secret put ADMIN_BOOTSTRAP_TOKEN`.
+For production verification delivery, configure `EMAIL_PROVIDER=resend` and
+`EMAIL_FROM`, then set `RESEND_API_KEY` with `wrangler secret put RESEND_API_KEY`.
 
 ## Remaining risks / Phase-2 notes
 
-- Needs a real email provider for production reset/verification delivery.
 - PBKDF2 210k needs Workers paid CPU headroom; tune `PBKDF2_ITERATIONS`.
 - No WebAuthn/passkeys, no 2FA, no device sessions list UI yet.
 - `ADMIN_BOOTSTRAP_TOKEN` must be rotated/removed after first admin exists.

@@ -5,7 +5,7 @@
 import { audit } from "./audit";
 import { checkRequestOrigin } from "./cors";
 import { hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
-import { flowLink, type Mailer } from "./mailer";
+import { flowLink, productionMailConfigured, type Mailer } from "./mailer";
 import { checkRateLimit, limitFromEnv } from "./ratelimit";
 import { buildClearCookie, cookieScope, createSession, verifySession } from "./sessions";
 import type { Store } from "./store";
@@ -79,6 +79,11 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
   const password = body && typeof body.password === "string" ? body.password : null;
   if (!token || !email || !displayName || !pw.ok || !password) {
     return err("INVALID_INPUT", !token ? "Invalid or missing invitation." : !email ? "Enter a valid email address." : !displayName ? "Enter a valid display name (1-60 characters)." : (pw.message ?? "Invalid password."), 400);
+  }
+  // Do this before claiming an invite or creating a user. A production
+  // deployment without delivery capability must not create unverifiable rows.
+  if (!productionMailConfigured(ctx.env)) {
+    return err("EMAIL_UNAVAILABLE", "Email delivery is temporarily unavailable.", 503);
   }
 
   await ctx.store.expireInvitations(ctx.now());
@@ -281,6 +286,11 @@ export async function handleRequestPasswordReset(ctx: HandlerContext, req: Reque
   const email = body ? normalizeEmail(body.email) : null;
   // Neutral response in all cases — never reveal whether the email exists.
   if (!email) return json({ ok: true });
+  // Fail before any lookup or mutation: an unavailable provider must produce
+  // the same response for existent and unknown emails (no oracle, no orphans).
+  if (!productionMailConfigured(ctx.env)) {
+    return err("EMAIL_UNAVAILABLE", "Email delivery is temporarily unavailable.", 503);
+  }
   const user = await ctx.store.getUserByEmail(email);
   const now = ctx.now();
   if (user && user.status !== "DISABLED") {
@@ -345,6 +355,11 @@ export async function handleRequestVerification(ctx: HandlerContext, req: Reques
   const body = await readJson(req);
   const email = body ? normalizeEmail(body.email) : null;
   if (!email) return json({ ok: true });
+  // Fail before any lookup or mutation: an unavailable provider must produce
+  // the same response for existent and unknown emails (no oracle, no orphans).
+  if (!productionMailConfigured(ctx.env)) {
+    return err("EMAIL_UNAVAILABLE", "Email delivery is temporarily unavailable.", 503);
+  }
   const user = await ctx.store.getUserByEmail(email);
   const now = ctx.now();
   if (user && user.status === "PENDING_VERIFICATION") {
@@ -438,6 +453,17 @@ export async function handleCreateInvite(ctx: HandlerContext, req: Request): Pro
       const me = await ctx.store.getUserById(auth.userId);
       if (!me || me.role !== "OWNER") role = "USER";
     }
+  }
+  // The bootstrap token is restricted to the script's fixed address. Check it
+  // before minting so a rerun cannot leave an OWNER invite behind, without
+  // changing account-enumeration behavior for ordinary ADMIN sessions.
+  if (!auth.userId && intendedEmail && await ctx.store.getUserByEmail(intendedEmail)) {
+    return err("ACCOUNT_EXISTS", "An account already exists for this email address.", 409);
+  }
+  // The fixed OWNER bootstrap must fail before minting an invite when the
+  // resulting account could not receive its verification link.
+  if (role === "OWNER" && !productionMailConfigured(ctx.env)) {
+    return err("EMAIL_UNAVAILABLE", "Transactional email is not configured.", 503);
   }
   const ttlHoursRaw = typeof body?.ttlHours === "number" ? body.ttlHours : 72;
   const ttlHours = Number.isFinite(ttlHoursRaw) ? Math.min(Math.max(ttlHoursRaw, 1), 24 * 30) : 72;

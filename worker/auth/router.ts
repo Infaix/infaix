@@ -44,7 +44,7 @@ export function apiContext(req: Request, env: Env, url: URL, executionCtx?: Exec
     userAgent: req.headers.get("user-agent"),
     origin: url.origin,
     secure: url.protocol === "https:",
-    mailer: mailerFor(store, env.ENVIRONMENT),
+    mailer: mailerFor(store, env),
     waitUntil: executionCtx ? (task) => executionCtx.waitUntil(task) : undefined,
   };
 }

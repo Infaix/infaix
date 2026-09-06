@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { canUseInfaixAI } from "../worker/auth/entitlement";
 import {
   handleListUsers,
+  handleCreateInvite,
   handleLogin,
   handleMe,
   handleRegister,
@@ -92,6 +93,23 @@ describe("owner bootstrap: existing account safety", () => {
     expect(row?.display_name).toBe("Infaix");
     expect(row?.role).toBe("OWNER");
     expect(await verifyPassword(OWNER_PASSWORD, row?.password_hash ?? "")).toBe(true);
+  });
+
+  it("rerun preflight rejects an existing owner without minting an orphaned invite", async () => {
+    const w = makeWorld({ ADMIN_BOOTSTRAP_TOKEN: "bootstrap-token-for-tests" });
+    await bootstrapOwnerFlow(w);
+    const before = w.store.invitations.size;
+    const req = new Request(`${ORIGIN}/api/admin/invites`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: ORIGIN, "x-admin-token": "bootstrap-token-for-tests" },
+      body: JSON.stringify({ intendedEmail: OWNER_EMAIL, role: "OWNER", ttlHours: 72, note: "owner-bootstrap" }),
+    });
+    const res = await handleCreateInvite(w.ctx, req);
+
+    expect(res.status).toBe(409);
+    expect((res.body as { error: { code: string } }).error.code).toBe("ACCOUNT_EXISTS");
+    expect(w.store.invitations.size).toBe(before);
+    expect([...w.store.invitations.values()].filter((inv) => inv.status === "PENDING")).toHaveLength(0);
   });
 });
 
@@ -204,7 +222,10 @@ describe("owner bootstrap: no privilege-escalation surface", () => {
     for (const call of calls) {
       expect(call).not.toMatch(/[$,({]\s*(password|adminToken|inviteToken|verifyToken)\b/);
     }
-    // Audit convention for the optional finalize step.
-    expect(src).toContain("audit_log");
+    // Production activation stays in the verification flow; the script never
+    // prints a direct D1 verification/status mutation.
+    expect(src).toContain("EMAIL_UNAVAILABLE");
+    expect(src).toContain("unused OWNER invitation was revoked");
+    expect(src).not.toContain("UPDATE users SET");
   });
 });

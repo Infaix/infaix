@@ -14,6 +14,12 @@ export interface Env {
   SESSION_SECRET?: string;
   ADMIN_BOOTSTRAP_TOKEN?: string;
   ENVIRONMENT?: string;
+  /** Explicit production transactional-mail provider selector (currently: resend). */
+  EMAIL_PROVIDER?: string;
+  /** Verified sender address accepted by the transactional-mail provider. */
+  EMAIL_FROM?: string;
+  /** Runtime secret for the configured transactional-mail provider. */
+  RESEND_API_KEY?: string;
   APP_ORIGIN?: string;
   RL_LOGIN_LIMIT?: string;
   RL_LOGIN_WINDOW?: string;

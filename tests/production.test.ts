@@ -7,7 +7,14 @@ import type { Env } from "../worker/auth/types";
 import worker from "../worker/index";
 import { get, makeWorld, ORIGIN, post, registerVerifyLogin } from "./helpers";
 
-const PROD_ENV = { ENVIRONMENT: "production" };
+// The helper deliberately uses an in-memory OutboxMailer. These values only
+// satisfy the production delivery preflight; no external provider is called.
+const PROD_ENV = {
+  ENVIRONMENT: "production",
+  EMAIL_PROVIDER: "resend",
+  EMAIL_FROM: "INFAIX <identity@infaix.com>",
+  RESEND_API_KEY: "re_test_transactional_provider_key",
+};
 const AI_ORIGIN = "https://ai.infaix.com";
 const SITE_ORIGIN = "https://infaix.com";
 

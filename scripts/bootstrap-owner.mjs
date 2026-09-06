@@ -15,9 +15,8 @@
 //   INFAIX_OWNER_PASSWORD env var. Values are never printed, logged, or
 //   stored — they travel only inside HTTPS/localhost API request bodies and
 //   are hashed server-side by the existing PBKDF2 implementation.
-// - The script NEVER executes D1 SQL itself. An optional, strictly-guarded
-//   finalize statement is PRINTED for the operator to run via
-//   `wrangler d1 execute` only after email ownership is confirmed.
+// - The script NEVER executes D1 SQL itself. Email verification always uses
+//   the normal single-use verification token flow.
 // - Production requires --confirm-production plus interactive CONFIRM.
 // - Existing accounts are never overwritten: a spent/taken invitation ends
 //   the run with zero changes and a safe-state report.
@@ -210,9 +209,12 @@ console.log("API check: anonymous /me correctly reports unauthenticated.");
 
 // --- Step 1: email-locked OWNER invite (existing bootstrap workflow) --------
 let inviteToken = inviteTokenArg;
+let mintedInviteId = null;
+let adminTokenForCleanup = null;
 if (!inviteToken) {
   const adminToken = await promptSecret("Admin bootstrap token: ", "INFAIX_ADMIN_TOKEN");
   if (!adminToken) fail("Admin bootstrap token is required to mint the OWNER invite.");
+  adminTokenForCleanup = adminToken;
   // x-admin-token is the existing invite-scoped admin workflow (see
   // docs/auth.md); Origin satisfies the state-changing CSRF gate.
   let minted = null;
@@ -233,11 +235,22 @@ if (!inviteToken) {
       "The ADMIN_BOOTSTRAP_TOKEN may be unset, wrong, or already retired. Zero invitations minted."
     );
   }
+  if (minted.status === 409 && minted.body?.error?.code === "ACCOUNT_EXISTS") {
+    console.log("An account already exists for the fixed owner email. No invitation was minted and no account was changed.");
+    process.exit(0);
+  }
+  if (minted.status === 503 && minted.body?.error?.code === "EMAIL_UNAVAILABLE") {
+    fail(
+      "Production transactional email is not configured.",
+      "Configure the production mail provider before retrying; no invitation or account was created."
+    );
+  }
   if (minted.status !== 201 || !minted.body || typeof minted.body.token !== "string") {
     fail(`Invite minting failed (status ${minted.status}).`, "Zero changes made. Resolve the admin workflow before retrying.");
   }
   if (minted.body.role !== OWNER_ROLE) fail("Invite role mismatch. Aborting with zero account changes.");
   inviteToken = minted.body.token;
+  mintedInviteId = typeof minted.body.id === "string" ? minted.body.id : null;
   console.log("Invite minted: email-locked OWNER invitation (single-use, 72h).");
 } else {
   console.log("Using provided --invite-token (not displayed).");
@@ -268,15 +281,28 @@ const reg = await api("/api/auth/register", {
 }).catch(() => null);
 if (!reg) fail("Registration request failed (network).", "Retry once reachability is restored.");
 if (reg.status === 410) {
+  // A concurrent account creation can still race the preflight. Revoke only
+  // the invite minted by this run before reporting the safe existing state.
+  if (mintedInviteId && adminTokenForCleanup) {
+    const revoke = await fetch(`${originUrl.origin}/api/admin/invites/${mintedInviteId}/revoke`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: originUrl.origin, "x-admin-token": adminTokenForCleanup },
+      body: JSON.stringify({}),
+    }).catch(() => null);
+    if (!revoke || !revoke.ok) {
+      fail("Registration found an existing account, but the newly minted invite could not be revoked.", "Revoke that invitation immediately before retrying.");
+    }
+    console.log("Existing account detected; this run's unused OWNER invitation was revoked.");
+  }
   // Idempotent-safe path: invitation spent/taken — never overwrite. Probe
-  // with a login to report safe state without touching anything.
-  console.log("Invitation invalid/taken — attempting safe-state probe (no changes)...");
+  // with a login to report safe state without touching the existing account.
+  console.log("Invitation invalid/taken — attempting safe-state probe...");
   const probe = await api("/api/auth/login", { method: "POST", body: { email: OWNER_EMAIL, password } }).catch(() => null);
   if (probe && probe.status === 200 && probe.body && probe.body.user) {
     safeUserLine("Existing account:", probe.body.user);
-    console.log("No changes made. If ownership fields are wrong, an existing OWNER must fix them via /account/admin.");
+    console.log("Existing account was not modified. If ownership fields are wrong, an existing OWNER must fix them via /account/admin.");
   } else {
-    console.log("No changes made. The account may exist with a different password, or the invite was spent.");
+    console.log("The existing account was not modified. It may use a different password, or the invite was spent.");
     console.log("Next: verify via normal /login, or /forgot-password for recovery. Ownership changes require an existing OWNER session.");
   }
   process.exit(0);
@@ -300,8 +326,7 @@ if (verifyToken) {
     console.log("Email verified: account is ACTIVE.");
   }
 } else if (target === "production") {
-  console.log("NOTE: production currently has no email provider (NullMailer) — the verification link is discarded.");
-  console.log("Complete verification once delivery exists, or apply the guarded finalize statement below AFTER confirming mailbox control.");
+  console.log("Verification email sent through the configured production transactional mail provider. Open its link to complete activation.");
 } else {
   console.log("Fetch the verification token from the dev outbox and verify:");
   console.log(`  wrangler d1 execute infaix-db --local --command="SELECT link_token FROM email_outbox WHERE to_email='${OWNER_EMAIL}' AND kind='email_verification' ORDER BY id DESC LIMIT 1;"`);
@@ -327,16 +352,4 @@ console.log(`AI entitlement: ${meAfter.body.ai && meAfter.body.ai.enabled ? "ENA
 if (u.role !== OWNER_ROLE) console.log("WARNING: role is not OWNER — ownership was not established. Do not proceed.");
 if (u.status !== "ACTIVE") console.log("NOTE: status is not ACTIVE yet — finish email verification, then log in at /login.");
 
-// --- Step 6: optional guarded finalize (printed, NEVER executed here) ---------
-const finalizeNow = Date.now();
-console.log(`
---- Optional finalize (run ONLY after confirming mailbox control of ${OWNER_EMAIL}) ---
-This sets the explicit ai_access flag (OWNER bypass already entitles AI) and
-records the bootstrap audit event. It touches exactly one row:
-
-  wrangler d1 execute infaix-db --command="UPDATE users SET ai_access = 1, role = 'OWNER', status = 'ACTIVE', email_verified = 1, display_name = '${OWNER_DISPLAY_NAME}', updated_at = ${finalizeNow} WHERE email = '${OWNER_EMAIL}' AND role = 'OWNER';"
-  wrangler d1 execute infaix-db --command="INSERT INTO audit_log (event, actor_user_id, target_user_id, ip, detail, created_at) SELECT 'ACCOUNT_ENABLED', id, id, 'local-operator', 'owner-bootstrap', ${finalizeNow} FROM users WHERE email = '${OWNER_EMAIL}' AND role = 'OWNER';"
-
-Verify afterwards: log in at /login -> /account shows Role OWNER, AI Enabled -> Open INFAIX AI -> /ai.
-Remember to rotate/remove ADMIN_BOOTSTRAP_TOKEN once the owner exists.`);
 console.log("\nOwner bootstrap complete. Password was never printed, logged, or stored (server holds only the PBKDF2 hash).");
