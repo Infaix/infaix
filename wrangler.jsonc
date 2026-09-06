@@ -19,7 +19,7 @@
     {
       "binding": "INFAIX_DB",
       "database_name": "infaix-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "96eeae47-31ff-4e9f-8a22-0db9b89cdf32"
     }
   ],
   "vars": {
