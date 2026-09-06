@@ -422,6 +422,20 @@ async function adminAuth(ctx: HandlerContext, req: Request): Promise<AdminAuth> 
   }
   // 2. One-time bootstrap token (operator seeding; remove after first admin).
   const presented = req.headers.get("x-admin-token");
+  // TEMPORARY PROD DIAGNOSTIC — remove immediately after the 403 is
+  // root-caused. Metadata only (existence + lengths); values are never
+  // logged, compared here only by the existing strict equality below.
+  if (ctx.env.ENVIRONMENT === "production") {
+    console.log(
+      "diag bootstrap-token",
+      JSON.stringify({
+        hasSecret: !!ctx.env.ADMIN_BOOTSTRAP_TOKEN,
+        secretLen: ctx.env.ADMIN_BOOTSTRAP_TOKEN ? ctx.env.ADMIN_BOOTSTRAP_TOKEN.length : 0,
+        hasPresented: presented !== null,
+        presentedLen: presented ? presented.length : 0,
+      })
+    );
+  }
   if (ctx.env.ADMIN_BOOTSTRAP_TOKEN && presented && presented === ctx.env.ADMIN_BOOTSTRAP_TOKEN) {
     return { ok: true, userId: null };
   }
