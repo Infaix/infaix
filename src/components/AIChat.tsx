@@ -223,11 +223,13 @@ export default function AIChat() {
         {state.kind === "loading" && <div className="ai-hint">Connecting to INFAIX AI…</div>}
         {state.kind === "signin" && (
           <div className="ai-hint">
-            Sign in to use INFAIX AI. <Link href="/login">Log in</Link>
+            Sign in to use INFAIX AI. <Link href="/login?returnTo=/ai">Log in</Link>
           </div>
         )}
         {state.kind === "no-access" && (
-          <div className="ai-hint">AI access is not enabled for this account. Contact an INFAIX admin.</div>
+          <div className="ai-hint">
+            INFAIX AI — Access not enabled for this account. See your <Link href="/account">account</Link>.
+          </div>
         )}
         {state.kind === "unavailable" && <div className="ai-hint">{state.message}</div>}
         {(state.kind === "ready" || messages.length > 0) &&

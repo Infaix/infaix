@@ -71,6 +71,16 @@ describe("invite-only registration", () => {
     expect(await w.store.getUserByEmail("ada@infaix.com")).toBeNull();
   });
 
+  it("defaults new accounts to ai_access=0 (never granted by registration)", async () => {
+    const w = makeWorld();
+    const { token } = await seedInvite(w);
+    const res = await handleRegister(w.ctx, post("/api/auth/register", { token, ...GOOD }));
+    expect(res.status).toBe(201);
+    expect((res.body as { user: { ai_access: boolean } }).user.ai_access).toBe(false);
+    const row = await w.store.getUserByEmail("ada@infaix.com");
+    expect(row?.ai_access).toBe(0);
+  });
+
   it("is rate limited", async () => {
     const w = makeWorld({ RL_REGISTER_LIMIT: "2", RL_REGISTER_WINDOW: "3600" });
     const t = async () => {

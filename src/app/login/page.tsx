@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import AuthShell from "@/components/auth-shell";
@@ -20,7 +21,9 @@ export default function LoginPage() {
           title="LOG IN"
           desc="Sign in to your INFAIX account. Sessions are managed securely on INFAIX infrastructure."
         >
-          <LoginForm />
+          <Suspense fallback={<div className="ai-hint">Loading…</div>}>
+            <LoginForm />
+          </Suspense>
         </AuthShell>
       </main>
       <Footer />

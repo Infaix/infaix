@@ -102,6 +102,16 @@ export default function AccountDashboard() {
         </li>
       </ul>
 
+      {user.role === "OWNER" || user.ai_access ? (
+        <div className="auth-links" style={{ marginTop: 16 }}>
+          <Link href="/ai">Open INFAIX AI →</Link>
+        </div>
+      ) : (
+        <div className="ai-hint" style={{ marginTop: 16 }} role="status">
+          INFAIX AI — Access not enabled for this account.
+        </div>
+      )}
+
       {user.role === "OWNER" && (
         <div className="auth-links" style={{ marginTop: 16 }}>
           <Link href="/account/admin/ai-access">Manage AI access →</Link>

@@ -50,6 +50,18 @@ describe("login", () => {
     expect((disabled.body as { error: { code: string } }).error.code).toBe("ACCOUNT_DISABLED");
   });
 
+  it("carries the session only via Set-Cookie, never in the body", async () => {
+    const w = makeWorld();
+    await registerVerifyLogin(w);
+    const res = await handleLogin(w.ctx, post("/api/auth/login", { email: "ada@infaix.com", password: "Correct-Horse-99-Battery" }));
+    expect(res.status).toBe(200);
+    expect(res.headers?.["set-cookie"]).toContain("infaix_session=");
+    const text = JSON.stringify(res.body).toLowerCase();
+    expect(text).not.toContain("infaix_session");
+    expect(text).not.toContain("set-cookie");
+    expect(text).not.toContain("token");
+  });
+
   it("rejects invalid input and is rate limited", async () => {
     const w = makeWorld({ RL_LOGIN_LIMIT: "2", RL_LOGIN_WINDOW: "600" });
     const bad = await handleLogin(w.ctx, post("/api/auth/login", { email: "not-an-email", password: "x" }));
