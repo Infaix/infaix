@@ -22,9 +22,14 @@ function adminInviteRequest(body: unknown): Request {
 describe("transactional production mail", () => {
   it("uses the explicitly configured provider and sends the verification link only to it", async () => {
     const w = makeWorld({ ...PROD_MAIL });
-    let request: { url: string; init: RequestInit } | null = null;
+    // Holder object (not a bare `let`): assignments made inside the mock
+    // closure must remain visible to the type checker at the assertions
+    // below. A narrowing on a `let` keeps its initializer type across nested
+    // closures, collapsing `request?.url` to `never`; property narrowing is
+    // reset by the intervening awaits, preserving the declared union.
+    const captured: { request: { url: string; init: RequestInit } | null } = { request: null };
     w.ctx.mailer = mailerFor(w.store, w.ctx.env, async (url, init) => {
-      request = { url, init };
+      captured.request = { url, init };
       return new Response(JSON.stringify({ id: "email_123" }), { status: 200 });
     });
     const { token } = await seedInvite(w, { email: "member@infaix.com" });
@@ -34,10 +39,10 @@ describe("transactional production mail", () => {
     );
 
     expect(res.status).toBe(201);
-    expect(request?.url).toBe("https://api.resend.com/emails");
-    expect(request?.init.method).toBe("POST");
-    expect(request?.init.headers).toMatchObject({ authorization: "Bearer re_test_transactional_provider_key" });
-    const payload = JSON.parse(String(request?.init.body));
+    expect(captured.request?.url).toBe("https://api.resend.com/emails");
+    expect(captured.request?.init.method).toBe("POST");
+    expect(captured.request?.init.headers).toMatchObject({ authorization: "Bearer re_test_transactional_provider_key" });
+    const payload = JSON.parse(String(captured.request?.init.body));
     expect(payload.to).toEqual(["member@infaix.com"]);
     expect(payload.text).toContain("https://infaix.com/verify-email?token=");
     expect(JSON.stringify(res.body)).not.toContain("verify-email?token=");
