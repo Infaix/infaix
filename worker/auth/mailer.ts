@@ -58,21 +58,42 @@ export class ResendMailer implements Mailer {
   }
 
   private async deliver(to: string, subject: string, intro: string, link: string): Promise<void> {
-    const res = await this.send("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${this.apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from: this.from,
-        to: [to],
-        subject,
-        text: `${intro}\n${link}`,
-        html: `<p>${intro}</p><p><a href="${link}">Continue</a></p>`,
-      }),
-    });
-    if (!res.ok) throw new Error("Transactional email delivery failed.");
+    const requestId = crypto.randomUUID();
+    let res: Response;
+    try {
+      res = await this.send("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          from: this.from,
+          to: [to],
+          subject,
+          text: `${intro}\n${link}`,
+          html: `<p>${intro}</p><p><a href="${link}">Continue</a></p>`,
+        }),
+      });
+    } catch (error) {
+      console.error({
+        request_id: requestId,
+        http_status: null,
+        response_body: null,
+        response_headers: null,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+      throw error;
+    }
+    if (!res.ok) {
+      console.error({
+        request_id: requestId,
+        http_status: res.status,
+        response_body: await res.text(),
+        response_headers: Object.fromEntries(res.headers.entries()),
+      });
+      throw new Error("Transactional email delivery failed.");
+    }
   }
 }
 

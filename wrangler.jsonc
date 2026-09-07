@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "infaix-website",
+  "name": "infaix",
   "compatibility_date": "2025-09-01",
   "assets": {
     "directory": "./out",
@@ -23,8 +23,11 @@
     }
   ],
   "vars": {
-    "ENVIRONMENT": "production"
-  },
+  "ENVIRONMENT": "production",
+  "EMAIL_PROVIDER": "resend",
+  "EMAIL_FROM": "noreply@infaix.com",
+  "PBKDF2_ITERATIONS": "50000"
+},
   "observability": {
     "logs": {
       "enabled": true,
