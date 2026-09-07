@@ -87,6 +87,14 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
   }
   // Do this before claiming an invite or creating a user. A production
   // deployment without delivery capability must not create unverifiable rows.
+  console.log({
+    ENVIRONMENT: ctx.env.ENVIRONMENT,
+    EMAIL_PROVIDER: ctx.env.EMAIL_PROVIDER,
+    EMAIL_FROM_PRESENT: typeof ctx.env.EMAIL_FROM === "string",
+    EMAIL_FROM_LENGTH: ctx.env.EMAIL_FROM?.length ?? 0,
+    RESEND_PRESENT: typeof ctx.env.RESEND_API_KEY === "string",
+    RESEND_LENGTH: ctx.env.RESEND_API_KEY?.length ?? 0,
+  });
   if (!productionMailConfigured(ctx.env)) {
     return err("EMAIL_UNAVAILABLE", "Email delivery is temporarily unavailable.", 503);
   }
