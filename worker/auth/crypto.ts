@@ -57,14 +57,26 @@ function parseIterations(raw: string | undefined): number {
   return n;
 }
 
+export function effectivePbkdf2Iterations(raw: string | undefined): number {
+  return parseIterations(raw);
+}
+
 /**
  * Hash a password. Format: pbkdf2-sha256$<iterations>$<salt-b64>$<key-b64>.
  * Iteration count is configurable so deployments can tune CPU cost.
  */
-export async function hashPassword(password: string, iterationsRaw?: string): Promise<string> {
+export async function hashPassword(
+  password: string,
+  iterationsRaw?: string,
+  diagnostic?: (phase: "register:before-importKey" | "register:after-importKey" | "register:before-deriveBits" | "register:after-deriveBits") => void
+): Promise<string> {
   const iterations = parseIterations(iterationsRaw);
   const salt = new Uint8Array(SALT_BYTES);
   crypto.getRandomValues(salt);
+  diagnostic?.("register:before-importKey");
+  const importedKey = await crypto.subtle.importKey("raw", te.encode(password), "PBKDF2", false, ["deriveBits"]);
+  diagnostic?.("register:after-importKey");
+  diagnostic?.("register:before-deriveBits");
   const key = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
@@ -72,9 +84,10 @@ export async function hashPassword(password: string, iterationsRaw?: string): Pr
       iterations,
       hash: "SHA-256",
     },
-    await crypto.subtle.importKey("raw", te.encode(password), "PBKDF2", false, ["deriveBits"]),
+    importedKey,
     KEY_BYTES * 8
   );
+  diagnostic?.("register:after-deriveBits");
   return `pbkdf2-sha256$${iterations}$${bytesToBase64Url(salt)}$${bytesToBase64Url(new Uint8Array(key))}`;
 }
 

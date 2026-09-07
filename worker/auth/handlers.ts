@@ -4,7 +4,7 @@
 // audit. Error messages never reveal account existence or secrets.
 import { audit } from "./audit";
 import { checkRequestOrigin } from "./cors";
-import { hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
+import { effectivePbkdf2Iterations, hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
 import { flowLink, productionMailConfigured, type Mailer } from "./mailer";
 import { checkRateLimit, limitFromEnv } from "./ratelimit";
 import { buildClearCookie, cookieScope, createSession, verifySession } from "./sessions";
@@ -66,6 +66,11 @@ async function readJson(req: Request): Promise<Record<string, unknown> | null> {
 }
 
 export async function handleRegister(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
+  const requestId = crypto.randomUUID();
+  const started = Date.now();
+  const iterations = effectivePbkdf2Iterations(ctx.env.PBKDF2_ITERATIONS);
+  const diagnostic = (phase: string) => console.info(JSON.stringify({ phase, elapsed_ms: Date.now() - started, request_id: requestId, pbkdf2_iterations: iterations }));
+  diagnostic("register:start");
   if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   const rl = limitFromEnv(ctx.env, "RL_REGISTER_LIMIT", "RL_REGISTER_WINDOW", 10, 3600);
   const gate = await checkRateLimit(ctx.store, `register:${ctx.ip ?? "unknown"}`, rl, ctx.now());
@@ -98,12 +103,13 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
     // Neutral: do not reveal the address is taken via a distinct path.
     return err("INVITATION_INVALID", "This invitation is invalid, expired, or already used.", 410);
   }
+  diagnostic("register:validated");
 
   const now = ctx.now();
   const user: UserRow = {
     id: newId("usr"),
     email,
-    password_hash: await hashPassword(password, ctx.env.PBKDF2_ITERATIONS),
+    password_hash: await hashPassword(password, ctx.env.PBKDF2_ITERATIONS, diagnostic),
     display_name: displayName,
     role: inv.role,
     status: "PENDING_VERIFICATION",
@@ -114,11 +120,14 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
     last_login_at: null,
   };
   try {
+    diagnostic("register:before-insertUser");
     await ctx.store.insertUser(user);
+    diagnostic("register:after-insertUser");
   } catch {
     return err("INVITATION_INVALID", "This invitation is invalid, expired, or already used.", 410);
   }
   const claimed = await ctx.store.claimInvitation(inv.id, user.id, now);
+  diagnostic("register:after-claimInvitation");
   if (!claimed) {
     // Lost a race (or double submit): roll back the orphaned user row is
     // impossible without delete; instead disable it — no login possible.
