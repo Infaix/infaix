@@ -15,13 +15,13 @@ export default function VerifyEmailPage() {
   return (
     <>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <AuthShell
           label="INFAIX // Verification"
           title="VERIFY EMAIL"
           desc="Confirm your email address to activate your account. Links work once and expire after 24 hours."
         >
-          <Suspense fallback={<div className="ai-hint">Loading…</div>}>
+          <Suspense fallback={<div className="ai-hint loading-state" role="status">Loading…</div>}>
             <Verifier />
           </Suspense>
         </AuthShell>

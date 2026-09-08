@@ -48,7 +48,8 @@ export default function AmbientBackground() {
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     let raf = 0;
-    let running = true;
+    let running = false;
+    let lastTime = 0;
     let w = 0;
     let h = 0;
     let nodes: StarNode[] = [];
@@ -132,6 +133,7 @@ export default function AmbientBackground() {
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       seedNodes();
+      if (!running) draw(0);
     }
 
     function rotate(p: Vec3, ax: number, ay: number): Vec3 {
@@ -194,8 +196,8 @@ export default function AmbientBackground() {
       }
     }
 
-    function draw() {
-      t += 1;
+    function draw(step = 1) {
+      t += step;
       ctx.clearRect(0, 0, w, h);
 
       // --- Layer 4: wireframes (behind nodes) ---
@@ -203,17 +205,17 @@ export default function AmbientBackground() {
       const base = Math.min(w, h);
       for (const f of frames) {
         if (mobile && f.kind === "cube") continue; // simplify on mobile
-        f.rotX += f.spinX * 16;
-        f.rotY += f.spinY * 16;
+        f.rotX += f.spinX * 16 * step;
+        f.rotY += f.spinY * 16 * step;
         drawWire(f, base * f.scale * (mobile ? 0.8 : 1.25));
       }
 
       // --- Layer 3: network nodes ---
       const linkDist = mobile ? 110 : 140;
       for (const n of nodes) {
-        n.x += n.vx;
-        n.y += n.vy;
-        n.phase += n.speed;
+        n.x += n.vx * step;
+        n.y += n.vy * step;
+        n.phase += n.speed * step;
         if (n.x < -20) n.x = w + 20;
         if (n.x > w + 20) n.x = -20;
         if (n.y < -20) n.y = h + 20;
@@ -259,9 +261,11 @@ export default function AmbientBackground() {
       }
     }
 
-    function loop() {
+    function loop(now: number) {
       if (!running) return;
-      draw();
+      const step = lastTime ? Math.min((now - lastTime) / (1000 / 60), 2) : 0;
+      lastTime = now;
+      draw(step);
       raf = requestAnimationFrame(loop);
     }
 
@@ -276,7 +280,8 @@ export default function AmbientBackground() {
       } else if (!reduced.matches) {
         if (!running) {
           running = true;
-          loop();
+          lastTime = 0;
+          raf = requestAnimationFrame(loop);
         }
       }
     }
@@ -289,9 +294,10 @@ export default function AmbientBackground() {
 
     if (reduced.matches) {
       // Static version: one tasteful frame, no motion.
-      draw();
-    } else {
-      loop();
+      draw(0);
+    } else if (!document.hidden) {
+      running = true;
+      raf = requestAnimationFrame(loop);
     }
 
     const mq = reduced;
@@ -299,10 +305,11 @@ export default function AmbientBackground() {
       if (mq.matches) {
         running = false;
         cancelAnimationFrame(raf);
-        draw();
-      } else if (!running) {
+        draw(0);
+      } else if (!running && !document.hidden) {
         running = true;
-        loop();
+        lastTime = 0;
+        raf = requestAnimationFrame(loop);
       }
     };
     if (typeof mq.addEventListener === "function") mq.addEventListener("change", onMq);

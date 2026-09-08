@@ -15,13 +15,13 @@ export default function LoginPage() {
   return (
     <>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <AuthShell
           label="INFAIX // Account"
           title="LOG IN"
           desc="Sign in to your INFAIX account. Sessions are managed securely on INFAIX infrastructure."
         >
-          <Suspense fallback={<div className="ai-hint">Loading…</div>}>
+          <Suspense fallback={<div className="ai-hint loading-state" role="status">Loading…</div>}>
             <LoginForm />
           </Suspense>
         </AuthShell>

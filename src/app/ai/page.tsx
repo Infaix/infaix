@@ -20,7 +20,7 @@ export default function AIPage() {
     <>
       <Nav />
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <section className="page-hero">
           <div className="container">
             <div className="section-label">Forge // Intelligence interface</div>

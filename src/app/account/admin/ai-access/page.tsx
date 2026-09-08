@@ -14,7 +14,7 @@ export default function AiAccessAdminPage() {
   return (
     <>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <AuthShell
           label="INFAIX // Owner"
           title="AI ACCESS"

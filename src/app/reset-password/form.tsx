@@ -76,7 +76,7 @@ export default function ResetForm() {
           disabled={busy}
         />
       </div>
-      <button type="submit" className="ai-send auth-submit" disabled={busy}>
+      <button type="submit" className="ai-send auth-submit" disabled={busy} aria-busy={busy}>
         {busy ? "Updating…" : "Set new password"}
       </button>
     </form>

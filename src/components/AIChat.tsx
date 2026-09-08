@@ -59,6 +59,7 @@ export default function AIChat() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const followMessagesRef = useRef(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,12 +89,18 @@ export default function AIChat() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const panel = messagesEndRef.current?.parentElement;
+    if (!panel || !followMessagesRef.current) return;
+    panel.scrollTo({
+      top: panel.scrollHeight,
+      behavior: loading || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+    });
+  }, [messages, loading]);
 
   async function handleSend() {
     const text = input.trim();
     if (!text || loading || !model) return;
+    followMessagesRef.current = true;
     const userMsg: Message = { role: "user", content: text };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
@@ -219,7 +226,10 @@ export default function AIChat() {
     <div className="ai-panel">
       {statusBar}
 
-      <div className="ai-messages" role="log" aria-live="polite">
+      <div className="ai-messages" role="log" aria-live="polite" onScroll={(event) => {
+        const panel = event.currentTarget;
+        followMessagesRef.current = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 64;
+      }}>
         {state.kind === "loading" && <div className="ai-hint">Connecting to INFAIX AI…</div>}
         {state.kind === "signin" && (
           <div className="ai-hint">
@@ -242,14 +252,9 @@ export default function AIChat() {
             role="article"
             aria-label={msg.role === "user" ? "You" : "INFAIX AI"}
           >
-            {msg.content}
+            {msg.content || (loading && i === messages.length - 1 ? "Thinking…" : "")}
           </div>
         ))}
-        {loading && messages[messages.length - 1]?.role !== "assistant" && (
-          <div className="ai-msg assistant" aria-label="INFAIX AI">
-            Thinking…
-          </div>
-        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -274,8 +279,8 @@ export default function AIChat() {
           disabled={loading || state.kind !== "ready"}
           autoComplete="off"
         />
-        <button type="submit" className="ai-send" disabled={loading || !input.trim() || state.kind !== "ready"}>
-          Send
+        <button type="submit" className="ai-send" aria-busy={loading} disabled={loading || !input.trim() || state.kind !== "ready"}>
+          {loading ? "Sending…" : "Send"}
         </button>
       </form>
     </div>

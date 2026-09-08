@@ -15,13 +15,13 @@ export default function ResetPasswordPage() {
   return (
     <>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <AuthShell
           label="INFAIX // Recovery"
           title="NEW PASSWORD"
           desc="Choose a new password. Your reset link works once and expires after 1 hour."
         >
-          <Suspense fallback={<div className="ai-hint">Loading…</div>}>
+          <Suspense fallback={<div className="ai-hint loading-state" role="status">Loading…</div>}>
             <ResetForm />
           </Suspense>
         </AuthShell>

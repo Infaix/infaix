@@ -13,7 +13,8 @@ export default function AccountDashboard() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [msg, setMsg] = useState<{ kind: "error" | "success"; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [operation, setOperation] = useState<"name" | "password" | null>(null);
+  const busy = operation !== null;
 
   useEffect(() => {
     let live = true;
@@ -36,9 +37,9 @@ export default function AccountDashboard() {
     e.preventDefault();
     if (busy) return;
     setMsg(null);
-    setBusy(true);
+    setOperation("name");
     const res = await api<{ user: PublicUser }>("/api/auth/profile", { displayName: name });
-    setBusy(false);
+    setOperation(null);
     if (!res.ok || !res.data) {
       setMsg({ kind: "error", text: res.message ?? "Could not save display name." });
       return;
@@ -51,9 +52,9 @@ export default function AccountDashboard() {
     e.preventDefault();
     if (busy) return;
     setMsg(null);
-    setBusy(true);
+    setOperation("password");
     const res = await api<{ ok: boolean }>("/api/auth/change-password", { currentPassword, newPassword });
-    setBusy(false);
+    setOperation(null);
     if (!res.ok) {
       setMsg({ kind: "error", text: res.message ?? "Could not change password." });
       return;
@@ -69,11 +70,11 @@ export default function AccountDashboard() {
     router.refresh();
   }
 
-  if (loading) return <div className="ai-hint">Loading account…</div>;
-  if (!user) return <div className="ai-hint">Redirecting to login…</div>;
+  if (loading) return <div className="ai-hint loading-state account-content" role="status">Loading account…</div>;
+  if (!user) return <div className="ai-hint loading-state account-content" role="status">Redirecting to login…</div>;
 
   return (
-    <div>
+    <div className="account-content">
       {msg && <div className={msg.kind === "error" ? "auth-error" : "auth-success"} role="status">{msg.text}</div>}
       <ul className="kv-list">
         <li>
@@ -133,8 +134,8 @@ export default function AccountDashboard() {
             disabled={busy}
           />
         </div>
-        <button type="submit" className="ai-send auth-submit" disabled={busy}>
-          Save display name
+        <button type="submit" className="ai-send auth-submit" disabled={busy} aria-busy={operation === "name"}>
+          {operation === "name" ? "Saving…" : "Save display name"}
         </button>
       </form>
 
@@ -166,8 +167,8 @@ export default function AccountDashboard() {
             disabled={busy}
           />
         </div>
-        <button type="submit" className="ai-send auth-submit" disabled={busy}>
-          Change password
+        <button type="submit" className="ai-send auth-submit" disabled={busy} aria-busy={operation === "password"}>
+          {operation === "password" ? "Updating…" : "Change password"}
         </button>
       </form>
 

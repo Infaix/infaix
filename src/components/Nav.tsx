@@ -52,6 +52,7 @@ export default function Nav() {
 
   return (
     <header>
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <div className="container">
         <nav aria-label="Primary">
           <Link href="/" className="brand-mark" aria-label="INFAIX home">
@@ -80,7 +81,7 @@ export default function Nav() {
                   key={l.href}
                   href={l.href}
                   className={cls || undefined}
-                  aria-current={active ? "page" : undefined}
+                  aria-current={active && !(l.href === "/account" && pathname.startsWith("/account/admin/")) ? "page" : undefined}
                 >
                   {l.label}
                 </Link>

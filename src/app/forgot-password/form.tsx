@@ -41,7 +41,7 @@ export default function ForgotForm() {
           disabled={busy}
         />
       </div>
-      <button type="submit" className="ai-send auth-submit" disabled={busy}>
+      <button type="submit" className="ai-send auth-submit" disabled={busy} aria-busy={busy}>
         {busy ? "Sending…" : "Send reset link"}
       </button>
     </form>

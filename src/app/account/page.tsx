@@ -14,7 +14,7 @@ export default function AccountPage() {
   return (
     <>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <AuthShell
           label="INFAIX // Account"
           title="ACCOUNT"

@@ -76,7 +76,7 @@ export default function AiAccessManager() {
     });
   }
 
-  if (load.kind === "loading") return <div className="ai-hint">Loading administration…</div>;
+  if (load.kind === "loading") return <div className="ai-hint loading-state" role="status">Loading administration…</div>;
   if (load.kind === "denied")
     return (
       <div>

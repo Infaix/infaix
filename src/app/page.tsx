@@ -186,7 +186,7 @@ export default function HomePage() {
     <>
       <Nav />
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         {/* ============ HERO ============ */}
         <section className="hero">
           <div className="container hero-inner">

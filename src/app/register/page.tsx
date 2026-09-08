@@ -15,13 +15,13 @@ export default function RegisterPage() {
   return (
     <>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <AuthShell
           label="INFAIX // Invitation"
           title="REGISTER"
           desc="INFAIX registration is invite-only. Open your invitation link, then choose your credentials."
         >
-          <Suspense fallback={<div className="ai-hint">Loading…</div>}>
+          <Suspense fallback={<div className="ai-hint loading-state" role="status">Loading…</div>}>
             <RegisterForm />
           </Suspense>
         </AuthShell>

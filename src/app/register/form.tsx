@@ -96,7 +96,7 @@ export default function RegisterForm() {
           disabled={busy}
         />
       </div>
-      <button type="submit" className="ai-send auth-submit" disabled={busy}>
+      <button type="submit" className="ai-send auth-submit" disabled={busy} aria-busy={busy}>
         {busy ? "Creating account…" : "Create account"}
       </button>
       <div className="auth-links">

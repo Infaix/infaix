@@ -21,7 +21,7 @@ export default function AboutPage() {
     <>
       <Nav />
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <section className="page-hero">
           <div className="container">
             <ScrollReveal>

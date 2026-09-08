@@ -14,7 +14,7 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <AuthShell
           label="INFAIX // Recovery"
           title="RESET PASSWORD"
