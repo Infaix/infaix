@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { handleCreateInvite, handleRegister, handleRequestPasswordReset, handleRequestVerification } from "../worker/auth/handlers";
 import { mailerFor } from "../worker/auth/mailer";
 import type { Env } from "../worker/auth/types";
@@ -20,6 +20,24 @@ function adminInviteRequest(body: unknown): Request {
 }
 
 describe("transactional production mail", () => {
+  it("preserves the Worker global fetch receiver through the production factory", async () => {
+    const w = makeWorld({ ...PROD_MAIL });
+    const transport = vi.fn(function (this: unknown) {
+      if (this !== globalThis) throw new TypeError("Illegal invocation: incorrect fetch receiver");
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+    vi.stubGlobal("fetch", transport);
+    try {
+      const mailer = mailerFor(w.store, w.ctx.env);
+      await mailer.sendVerification("member@infaix.com", `${ORIGIN}/verify-email?token=test`, 0);
+      await mailer.sendPasswordReset("member@infaix.com", `${ORIGIN}/reset-password?token=test`, 0);
+      expect(transport).toHaveBeenCalledTimes(2);
+      expect(transport).toHaveBeenCalledWith("https://api.resend.com/emails", expect.objectContaining({ method: "POST" }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("uses the explicitly configured provider and sends the verification link only to it", async () => {
     const w = makeWorld({ ...PROD_MAIL });
     // Holder object (not a bare `let`): assignments made inside the mock

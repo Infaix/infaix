@@ -101,7 +101,7 @@ export function productionMailConfigured(env: Env): boolean {
   );
 }
 
-export function mailerFor(store: Store, env: Env, send: MailFetch = fetch): Mailer {
+export function mailerFor(store: Store, env: Env, send?: MailFetch): Mailer {
   if (env.ENVIRONMENT !== "production") return new OutboxMailer(store);
   if (!productionMailConfigured(env)) return new UnavailableMailer();
   return new ResendMailer(env.RESEND_API_KEY!, env.EMAIL_FROM!.trim(), send);
