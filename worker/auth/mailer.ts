@@ -46,7 +46,7 @@ export class ResendMailer implements Mailer {
   constructor(
     private readonly apiKey: string,
     private readonly from: string,
-    private readonly send: MailFetch = fetch
+    private readonly send: MailFetch = globalThis.fetch.bind(globalThis)
   ) {}
 
   async sendPasswordReset(toEmail: string, link: string): Promise<void> {
