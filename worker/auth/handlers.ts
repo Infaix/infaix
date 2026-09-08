@@ -373,12 +373,16 @@ export async function handleResetPassword(ctx: HandlerContext, req: Request): Pr
 // ---------------------------------------------------------------- email verification
 
 export async function handleRequestVerification(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
+  const diagnostic = phaseLogger("verify");
+  diagnostic("start");
   if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  diagnostic("origin-ok");
   const rl = limitFromEnv(ctx.env, "RL_VERIFY_LIMIT", "RL_VERIFY_WINDOW", 10, 3600);
   const gate = await checkRateLimit(ctx.store, `verify-send:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) {
     return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
   }
+  diagnostic("rate-limit-ok");
   const body = await readJson(req);
   const email = body ? normalizeEmail(body.email) : null;
   if (!email) return json({ ok: true });
@@ -388,10 +392,13 @@ export async function handleRequestVerification(ctx: HandlerContext, req: Reques
     return err("EMAIL_UNAVAILABLE", "Email delivery is temporarily unavailable.", 503);
   }
   const user = await ctx.store.getUserByEmail(email);
+  diagnostic("user-loaded");
   const now = ctx.now();
   if (user && user.status === "PENDING_VERIFICATION") {
     await ctx.store.expireUserVerifications(user.id);
+    diagnostic("verification-expired");
     const token = randomToken();
+    diagnostic("token-generated");
     await ctx.store.insertVerification({
       id: newId("evf"),
       user_id: user.id,
@@ -401,9 +408,22 @@ export async function handleRequestVerification(ctx: HandlerContext, req: Reques
       expires_at: now + 24 * 60 * 60 * 1000,
       used_at: null,
     });
-    await ctx.mailer.sendVerification(email, flowLink(ctx.origin, "/verify-email", token), now);
+    diagnostic("verification-inserted");
+    diagnostic("before-sendVerification");
+    try {
+      await ctx.mailer.sendVerification(email, flowLink(ctx.origin, "/verify-email", token), now);
+    } catch (e) {
+      console.error("verify:sendVerification failed", {
+        name: e instanceof Error ? e.name : typeof e,
+        message: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
+      throw e;
+    }
+    diagnostic("after-sendVerification");
     await audit(ctx.store, "EMAIL_VERIFICATION_SENT", { target: user.id, ip: ctx.ip, now });
   }
+  diagnostic("complete");
   return json({ ok: true });
 }
 

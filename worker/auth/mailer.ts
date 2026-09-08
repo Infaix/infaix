@@ -59,17 +59,9 @@ export class ResendMailer implements Mailer {
 
   private async deliver(to: string, subject: string, intro: string, link: string): Promise<void> {
     const requestId = crypto.randomUUID();
-    // TEMPORARY PROD DIAGNOSTIC (Resend 500) — remove after root-caused.
-    // Metadata only: never the API key, Authorization header, link/token,
-    // passwords, or request secrets.
-    console.error({
-      request_id: requestId,
-      phase: "resend:pre-fetch",
-      endpoint: "https://api.resend.com/emails",
-      from: this.from,
-      to,
-      subject,
-    });
+    const started = Date.now();
+    const diagnostic = (phase: string) => console.log({ request_id: requestId, phase: `mail:${phase}`, elapsed_ms: Date.now() - started });
+    diagnostic("before-fetch");
     let res: Response;
     try {
       res = await this.send("https://api.resend.com/emails", {
@@ -87,27 +79,15 @@ export class ResendMailer implements Mailer {
         }),
       });
     } catch (error) {
-      console.error({
-        request_id: requestId,
-        phase: "resend:throw",
-        http_status: null,
-        response_body: null,
-        response_headers: null,
-        error_name: error instanceof Error ? error.name : typeof error,
-        error: error instanceof Error ? error.message : "unknown",
-        error_stack:
-          error instanceof Error && typeof error.stack === "string" ? error.stack.slice(0, 2000) : null,
-      });
+      diagnostic("throw");
+      console.error("mail:throw failed", { name: error instanceof Error ? error.name : typeof error, message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
       throw error;
     }
+    diagnostic("after-fetch");
     if (!res.ok) {
-      console.error({
-        request_id: requestId,
-        phase: "resend:non-ok",
-        http_status: res.status,
-        response_body: await res.text(),
-        response_headers: Object.fromEntries(res.headers.entries()),
-      });
+      diagnostic("non-ok");
+      const error = new Error("Transactional email delivery failed.");
+      console.error("mail:throw failed", { name: error.name, message: error.message, stack: error.stack });
       throw new Error("Transactional email delivery failed.");
     }
   }
