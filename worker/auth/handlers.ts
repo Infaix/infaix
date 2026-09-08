@@ -4,7 +4,7 @@
 // audit. Error messages never reveal account existence or secrets.
 import { audit } from "./audit";
 import { checkRequestOrigin } from "./cors";
-import { effectivePbkdf2Iterations, hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
+import { hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
 import { flowLink, productionMailConfigured, type Mailer } from "./mailer";
 import { checkRateLimit, limitFromEnv } from "./ratelimit";
 import { buildClearCookie, cookieScope, createSession, verifySession } from "./sessions";
@@ -65,16 +65,21 @@ async function readJson(req: Request): Promise<Record<string, unknown> | null> {
   }
 }
 
-export async function handleRegister(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
+function phaseLogger(prefix: string): (phase: string) => void {
   const requestId = crypto.randomUUID();
   const started = Date.now();
-  const iterations = effectivePbkdf2Iterations(ctx.env.PBKDF2_ITERATIONS);
-  const diagnostic = (phase: string) => console.info(JSON.stringify({ phase, elapsed_ms: Date.now() - started, request_id: requestId, pbkdf2_iterations: iterations }));
-  diagnostic("register:start");
+  return (phase) => console.log({ request_id: requestId, phase: `${prefix}:${phase}`, elapsed_ms: Date.now() - started });
+}
+
+export async function handleRegister(ctx: HandlerContext, req: Request): Promise<HandlerResult> {
+  const diagnostic = phaseLogger("register");
+  diagnostic("start");
   if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
+  diagnostic("origin-ok");
   const rl = limitFromEnv(ctx.env, "RL_REGISTER_LIMIT", "RL_REGISTER_WINDOW", 10, 3600);
   const gate = await checkRateLimit(ctx.store, `register:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
+  diagnostic("rate-limit-ok");
 
   const body = await readJson(req);
   const token = body ? checkToken(body.token) : null;
@@ -85,22 +90,17 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
   if (!token || !email || !displayName || !pw.ok || !password) {
     return err("INVALID_INPUT", !token ? "Invalid or missing invitation." : !email ? "Enter a valid email address." : !displayName ? "Enter a valid display name (1-60 characters)." : (pw.message ?? "Invalid password."), 400);
   }
+  diagnostic("validated");
   // Do this before claiming an invite or creating a user. A production
   // deployment without delivery capability must not create unverifiable rows.
-  console.log({
-    ENVIRONMENT: ctx.env.ENVIRONMENT,
-    EMAIL_PROVIDER: ctx.env.EMAIL_PROVIDER,
-    EMAIL_FROM_PRESENT: typeof ctx.env.EMAIL_FROM === "string",
-    EMAIL_FROM_LENGTH: ctx.env.EMAIL_FROM?.length ?? 0,
-    RESEND_PRESENT: typeof ctx.env.RESEND_API_KEY === "string",
-    RESEND_LENGTH: ctx.env.RESEND_API_KEY?.length ?? 0,
-  });
   if (!productionMailConfigured(ctx.env)) {
     return err("EMAIL_UNAVAILABLE", "Email delivery is temporarily unavailable.", 503);
   }
+  diagnostic("mail-config-ok");
 
   await ctx.store.expireInvitations(ctx.now());
   const inv = await ctx.store.getInvitationByTokenHash(await sha256Hex(token));
+  diagnostic("invitation-loaded");
   if (!inv || inv.status !== "PENDING" || inv.expires_at <= ctx.now()) {
     return err("INVITATION_INVALID", "This invitation is invalid, expired, or already used.", 410);
   }
@@ -111,7 +111,7 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
     // Neutral: do not reveal the address is taken via a distinct path.
     return err("INVITATION_INVALID", "This invitation is invalid, expired, or already used.", 410);
   }
-  diagnostic("register:validated");
+  diagnostic("user-checked");
 
   const now = ctx.now();
   const user: UserRow = {
@@ -127,15 +127,21 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
     updated_at: now,
     last_login_at: null,
   };
+  diagnostic("user-constructed");
   try {
-    diagnostic("register:before-insertUser");
+    diagnostic("before-user-insert");
     await ctx.store.insertUser(user);
-    diagnostic("register:after-insertUser");
-  } catch {
+    diagnostic("user-inserted");
+  } catch (e) {
+    console.error("register:insertUser failed", {
+      name: e instanceof Error ? e.name : typeof e,
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack : undefined,
+    });
     return err("INVITATION_INVALID", "This invitation is invalid, expired, or already used.", 410);
   }
   const claimed = await ctx.store.claimInvitation(inv.id, user.id, now);
-  diagnostic("register:after-claimInvitation");
+  diagnostic("invitation-claimed");
   if (!claimed) {
     // Lost a race (or double submit): roll back the orphaned user row is
     // impossible without delete; instead disable it — no login possible.
@@ -154,10 +160,14 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
     expires_at: now + 24 * 60 * 60 * 1000,
     used_at: null,
   });
+  diagnostic("verification-inserted");
+  diagnostic("before-mail");
   await ctx.mailer.sendVerification(email, flowLink(ctx.origin, "/verify-email", vToken), now);
+  diagnostic("after-mail");
 
   await audit(ctx.store, "INVITATION_USED", { target: user.id, ip: ctx.ip, detail: `invite:${inv.id}`, now });
   await audit(ctx.store, "ACCOUNT_CREATED", { target: user.id, ip: ctx.ip, detail: `role:${user.role}`, now });
+  diagnostic("complete");
   return json({ user: toPublicUser({ ...user }) satisfies PublicUser }, 201);
 }
 
