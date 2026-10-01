@@ -3,8 +3,10 @@ import ScrollReveal from "@/components/ScrollReveal";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import InfaixLogo from "@/components/infaix-logo";
-import AppDirectory from "@/components/app-directory";
+import EcosystemMap from "@/components/ecosystem-map";
 import { getPublicApps } from "@/lib/app-registry";
+import type { InfaixApp } from "@/lib/app-contract";
+import { shortName, statusLabel } from "@/lib/app-presentation";
 
 const capabilities = [
   {
@@ -68,6 +70,43 @@ const capabilities = [
   },
 ];
 
+const layers = [
+  {
+    layer: "Organisation",
+    title: "INFAIX",
+    desc: ["The studio. The philosophy.", "The independent entity."],
+    icon: (
+      <svg className="layer-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+        <path d="M20 4 26 14 20 34 14 14Z" />
+        <path d="M14 14 8 22 20 34 32 22 26 14" />
+        <path d="M20 4v8M14 14h12" stroke="rgba(145,70,255,0.6)" />
+      </svg>
+    ),
+  },
+  {
+    layer: "Infrastructure",
+    title: "FORGE",
+    desc: ["The environment. The systems. The tools.", "Where creation happens."],
+    icon: (
+      <svg className="layer-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+        <path d="M20 5 33 12.5v15L20 35 7 27.5v-15Z" />
+        <path d="M20 5v15m0 0L7 12.5M20 20l13-7.5M20 20v15" stroke="rgba(145,70,255,0.55)" />
+      </svg>
+    ),
+  },
+  {
+    layer: "Output",
+    title: "PROJECTS",
+    desc: ["The work that ships.", "Built on top of FORGE."],
+    icon: (
+      <svg className="layer-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+        <path d="M20 6 34 13 20 20 6 13Z" />
+        <path d="M6 20l14 7 14-7M6 27l14 7 14-7" />
+      </svg>
+    ),
+  },
+];
+
 const forgeItems = [
   { name: "Compute", desc: "High performance workloads.", glyph: "▣" },
   { name: "Network", desc: "Segmentation, routing, security.", glyph: "⌁" },
@@ -76,46 +115,69 @@ const forgeItems = [
   { name: "CI / Automation", desc: "Build, test, deploy, repeat.", glyph: "◉" },
 ];
 
-function HeroWireframe() {
+const lifecycle = [
+  { h: "BUILT", p: "Completed work. Live and available.", pill: "LIVE", tone: "live" },
+  { h: "BUILDING", p: "Active projects. In progress.", pill: "ACTIVE", tone: "active" },
+  { h: "DEVELOPING", p: "Prototypes and betas. Shaping the future.", pill: "DEVELOPMENT", tone: "" },
+  { h: "EXPLORING", p: "Research and experiments. Pushing boundaries.", pill: "RESEARCH", tone: "" },
+];
+
+/** Polyhedral structure with the insignia at its centre; spokes converge on the logo. */
+function HeroStructure() {
+  const outer: [number, number][] = [[306, 86], [522, 248], [442, 548], [158, 520], [76, 262]];
+  const depth: [number, number][] = [[352, 120], [548, 300], [430, 512], [190, 548], [104, 300]];
+  const c: [number, number] = [320, 330];
   return (
-    <svg viewBox="0 0 480 480" role="presentation" aria-hidden="true">
+    <svg className="hero-structure" viewBox="0 0 640 640" aria-hidden="true">
       <defs>
-        <radialGradient id="heroWireGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#9146FF" stopOpacity="0.22" />
+        <radialGradient id="heroCoreGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#9146FF" stopOpacity="0.2" />
           <stop offset="100%" stopColor="#9146FF" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <circle cx="240" cy="220" r="170" fill="url(#heroWireGlow)" />
-      {/* faint dotted field */}
-      {Array.from({ length: 9 }).map((_, r) =>
-        Array.from({ length: 12 }).map((_, c) => (
-          <circle
-            key={`${r}-${c}`}
-            cx={40 + c * 36}
-            cy={30 + r * 48}
-            r="1"
-            fill="rgba(200,190,225,0.14)"
-          />
+      <circle cx={c[0]} cy={c[1]} r="250" fill="url(#heroCoreGlow)" />
+      {Array.from({ length: 11 }).map((_, r) =>
+        Array.from({ length: 13 }).map((_, col) => (
+          <circle key={`${r}-${col}`} cx={32 + col * 48} cy={40 + r * 56} r="1" fill="rgba(200,190,225,0.12)" />
         ))
       )}
-      {/* large irregular polyhedron */}
-      <g stroke="rgba(170,150,210,0.28)" strokeWidth="1" fill="none">
-        <path d="M240 40 400 160 340 380 130 360 70 170 Z" />
-        <path d="M240 40 250 220 340 380 M70 170 250 220 400 160 M130 360 250 220 M240 40 240 220" stroke="rgba(170,150,210,0.16)" />
-        <path d="M250 220 240 120 330 200 250 220 150 200 240 120" stroke="rgba(145,70,255,0.25)" />
-        <circle cx="240" cy="40" r="26" stroke="rgba(170,150,210,0.14)" />
-        <circle cx="240" cy="40" r="44" stroke="rgba(170,150,210,0.09)" />
+      <g fill="none" strokeWidth="1">
+        <polygon points={depth.map((p) => p.join(" ")).join(" ")} stroke="rgba(170,150,210,0.1)" />
+        {outer.map((p, i) => (
+          <path key={`d${i}`} d={`M${p[0]} ${p[1]} L${depth[i][0]} ${depth[i][1]}`} stroke="rgba(170,150,210,0.1)" />
+        ))}
+        <polygon points={outer.map((p) => p.join(" ")).join(" ")} stroke="rgba(170,150,210,0.3)" />
+        {outer.map((p, i) => (
+          <path key={`s${i}`} d={`M${p[0]} ${p[1]} L${c[0]} ${c[1]}`} stroke="rgba(145,70,255,0.28)" strokeDasharray="2 6" />
+        ))}
+        <circle cx={outer[0][0]} cy={outer[0][1]} r="28" stroke="rgba(170,150,210,0.14)" />
+        <circle cx={outer[0][0]} cy={outer[0][1]} r="48" stroke="rgba(170,150,210,0.08)" />
       </g>
-      {/* nodes */}
-      {[
-        [240, 40, 1], [400, 160, 0], [340, 380, 1], [130, 360, 0], [70, 170, 0], [250, 220, 1],
-      ].map(([x, y, p], i) => (
-        <g key={i}>
-          {p === 1 && <circle cx={x} cy={y} r="9" fill="rgba(145,70,255,0.08)" />}
-          <circle cx={x} cy={y} r={p === 1 ? 3 : 2} fill={p === 1 ? "#B36BFF" : "rgba(220,212,232,0.5)"} opacity={p === 1 ? 0.9 : 0.5} />
+      {outer.map(([x, y], i) => (
+        <g key={`n${i}`} className="hero-node">
+          {i % 2 === 0 && <circle cx={x} cy={y} r="10" fill="rgba(145,70,255,0.08)" />}
+          <circle cx={x} cy={y} r={i % 2 === 0 ? 3 : 2} fill={i % 2 === 0 ? "#B36BFF" : "rgba(220,212,232,0.5)"} opacity={i % 2 === 0 ? 0.9 : 0.55} />
         </g>
       ))}
     </svg>
+  );
+}
+
+function HeroIndex({ apps }: { apps: InfaixApp[] }) {
+  const groups = new Map<string, string[]>();
+  for (const app of apps) {
+    const label = statusLabel(app.status);
+    groups.set(label, [...(groups.get(label) ?? []), shortName(app)]);
+  }
+  return (
+    <dl className="hero-index">
+      {[...groups].map(([label, names]) => (
+        <div key={label} data-status={label === "Live" ? "live" : "later"}>
+          <dt>{label}</dt>
+          <dd>{names.join(" · ")}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -124,7 +186,6 @@ function ForgeDiagram() {
   const edge = "rgba(120,105,150,0.5)";
   return (
     <svg viewBox="0 0 460 340" role="img" aria-label="FORGE infrastructure diagram: compute, network, fabrication and bench connected through INFAIX core into projects">
-      {/* connectors */}
       <g stroke="rgba(145,70,255,0.45)" strokeWidth="1" fill="none">
         <path d="M110 78 V130 H195" />
         <path d="M350 78 V130 H265" />
@@ -136,7 +197,6 @@ function ForgeDiagram() {
       <g stroke="rgba(150,135,180,0.25)" strokeWidth="1" fill="none">
         <circle cx="230" cy="170" r="46" strokeDasharray="3 6" />
       </g>
-      {/* boxes */}
       {[
         { x: 60, y: 30, label: "COMPUTE", glyph: "▣" },
         { x: 300, y: 30, label: "NETWORK", glyph: "⌁" },
@@ -150,11 +210,9 @@ function ForgeDiagram() {
           <text x={b.x + 50} y={b.y + 42} textAnchor="middle" fill="#c9c3d6" fontSize="9" letterSpacing="1.5" fontFamily="Space Grotesk, sans-serif">{b.label}</text>
         </g>
       ))}
-      {/* core */}
       <rect x="195" y="140" width="70" height="60" rx="6" fill="rgba(20,14,30,0.95)" stroke="rgba(145,70,255,0.6)" />
       <text x="230" y="168" textAnchor="middle" fill="#B36BFF" fontSize="20">◆</text>
       <text x="230" y="186" textAnchor="middle" fill="#6f6880" fontSize="7.5" letterSpacing="1.5" fontFamily="Space Grotesk, sans-serif">INFAIX</text>
-      {/* node dots */}
       {[[110, 130], [350, 130], [110, 210], [350, 210], [355, 170]].map(([x, y], i) => (
         <circle key={i} cx={x} cy={y} r="3" fill="#B36BFF" opacity="0.85" />
       ))}
@@ -183,149 +241,124 @@ function TerrainMesh() {
   );
 }
 
+function Seam({ index }: { index: string }) {
+  return <div className="seam" aria-hidden="true"><span>{index}</span></div>;
+}
+
 export default function HomePage() {
+  const apps = getPublicApps();
   return (
     <>
       <Nav />
 
       <main id="main-content" tabIndex={-1}>
         {/* ============ HERO ============ */}
-        <section className="hero">
+        <section className="hero" aria-labelledby="hero-title">
           <div className="container hero-inner">
-            <div className="hero-grid">
-              <div className="hero-left">
-                <ScrollReveal direction="left">
-                  <InfaixLogo variant="hero-illuminated" priority />
-                </ScrollReveal>
-                <div className="hero-copy">
-                  <ScrollReveal>
-                    <h1>INFAIX</h1>
-                    <div className="hero-tag">BUILD WHAT&apos;S NEXT.</div>
-                    <p className="hero-desc">
-                      An independent technology studio. A growing ecosystem
-                      of software, hardware and infrastructure — connected
-                      through INFAIX Core.
-                    </p>
-                    <div className="hero-ctas">
-                      <Link href="/#ecosystem" className="btn-forge">
-                        EXPLORE ECOSYSTEM <span aria-hidden="true">→</span>
-                      </Link>
-                      <Link href="/account" className="btn-quiet">
-                        YOUR ACCOUNT <span aria-hidden="true">→</span>
-                      </Link>
-                    </div>
-                  </ScrollReveal>
-                </div>
-              </div>
-              <div className="hero-wire" aria-hidden="true">
-                <div className="hero-wire-glow" />
-                <HeroWireframe />
-              </div>
+            <div className="hero-stage">
+              <HeroStructure />
+              <InfaixLogo variant="insignia" priority />
             </div>
+            <p className="hero-eyebrow">An independent technology studio</p>
+            <h1 id="hero-title" className="hero-wordmark">INFAIX</h1>
+            <p className="hero-tag">BUILD WHAT&apos;S NEXT.</p>
+            <p className="hero-desc">
+              A growing ecosystem of software, hardware and infrastructure,
+              connected through INFAIX Core.
+            </p>
+            <div className="hero-ctas">
+              <Link href="/#ecosystem" className="btn-forge">
+                ENTER THE ECOSYSTEM <span aria-hidden="true">↓</span>
+              </Link>
+              <Link href="/account" className="btn-quiet">
+                YOUR ACCOUNT <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+            <HeroIndex apps={apps} />
           </div>
+          <div className="hero-axis" aria-hidden="true" />
         </section>
 
+        {/* ============ ECOSYSTEM ============ */}
         <section id="ecosystem" className="section-pad ecosystem-section" aria-labelledby="ecosystem-title">
           <div className="container">
-            <div className="section-label">Connected by Core</div>
-            <h2 id="ecosystem-title">INFAIX Ecosystem</h2>
-            <p className="ecosystem-intro">Independent applications. One INFAIX identity. Explore what is available, and what comes next.</p>
-            <AppDirectory apps={getPublicApps()} />
+            <ScrollReveal>
+              <div className="section-head is-centered">
+                <div className="section-label">01 / Connected by Core</div>
+                <h2 id="ecosystem-title">INFAIX Ecosystem</h2>
+                <p>Independent applications. One INFAIX identity. Explore what is available, and what comes next.</p>
+              </div>
+            </ScrollReveal>
+            <EcosystemMap apps={apps} />
           </div>
         </section>
 
-        {/* ============ THREE-LAYER SYSTEM ============ */}
-        <section className="section-pad" style={{ paddingTop: 40 }}>
+        <Seam index="02" />
+
+        {/* ============ STRUCTURE ============ */}
+        <section className="section-pad layers-section" aria-labelledby="layers-title">
           <div className="container">
             <ScrollReveal>
-              <div className="ecosystem">
-                <div className="eco-cell">
-                  <div className="eco-top">
-                    <svg className="eco-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-                      <path d="M20 4 26 14 20 34 14 14Z" />
-                      <path d="M14 14 8 22 20 34 32 22 26 14" />
-                      <path d="M20 4v8M14 14h12" stroke="rgba(145,70,255,0.6)" />
-                    </svg>
-                    <div>
-                      <div className="eco-layer">Organisation</div>
-                      <div className="eco-title">INFAIX</div>
-                    </div>
-                  </div>
-                  <p className="eco-desc">The studio. The philosophy.<br />The independent entity.</p>
-                </div>
-                <div className="eco-link" aria-hidden="true"><span>›</span></div>
-                <div className="eco-cell">
-                  <div className="eco-top">
-                    <svg className="eco-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-                      <path d="M20 5 33 12.5v15L20 35 7 27.5v-15Z" />
-                      <path d="M20 5v15m0 0L7 12.5M20 20l13-7.5M20 20v15" stroke="rgba(145,70,255,0.55)" />
-                    </svg>
-                    <div>
-                      <div className="eco-layer">Infrastructure</div>
-                      <div className="eco-title">FORGE</div>
-                    </div>
-                  </div>
-                  <p className="eco-desc">The environment. The systems. The tools.<br />Where creation happens.</p>
-                </div>
-                <div className="eco-link" aria-hidden="true"><span>›</span></div>
-                <div className="eco-cell">
-                  <div className="eco-top">
-                    <svg className="eco-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-                      <path d="M20 6 34 13 20 20 6 13Z" />
-                      <path d="M6 20l14 7 14-7M6 27l14 7 14-7" />
-                    </svg>
-                    <div>
-                      <div className="eco-layer">Output</div>
-                      <div className="eco-title">PROJECTS</div>
-                    </div>
-                  </div>
-                  <p className="eco-desc">The work that ships.<br />Built on top of FORGE.</p>
-                </div>
+              <div className="section-head">
+                <div className="section-label">02 / Structure</div>
+                <h2 id="layers-title">Three layers. One direction.</h2>
               </div>
+            </ScrollReveal>
+            <ScrollReveal>
+              <ol className="layers">
+                {layers.map((l) => (
+                  <li key={l.title} className="layer">
+                    <div className="layer-mark">{l.icon}</div>
+                    <div className="layer-name">{l.layer}</div>
+                    <div className="layer-title">{l.title}</div>
+                    <p>{l.desc[0]}<br />{l.desc[1]}</p>
+                  </li>
+                ))}
+              </ol>
             </ScrollReveal>
           </div>
         </section>
 
         {/* ============ WHAT WE BUILD ============ */}
-        <section className="section-pad" style={{ paddingTop: 20 }}>
+        <section className="section-pad caps-section" aria-labelledby="caps-title">
           <div className="container">
             <div className="caps-layout">
               <ScrollReveal direction="left">
                 <div className="caps-intro">
-                  <div className="section-label">What we build</div>
-                  <h2>Core capabilities.<br />Unified by FORGE.</h2>
+                  <div className="section-label">03 / What we build</div>
+                  <h2 id="caps-title">Core capabilities.<br />Unified by FORGE.</h2>
                   <p>Different disciplines. One environment. All built, tested, and shipped through our infrastructure.</p>
                   <Link href="/forge" className="btn-quiet">
                     EXPLORE FORGE <span aria-hidden="true">→</span>
                   </Link>
                 </div>
               </ScrollReveal>
-              <div>
-                {capabilities.map((cap) => (
-                  <ScrollReveal key={cap.name}>
-                    <div className="capability">
+              <ScrollReveal>
+                <ul className="capabilities">
+                  {capabilities.map((cap) => (
+                    <li key={cap.name} className="capability">
                       <div className="cap-icon">{cap.icon}</div>
                       <div>
                         <div className="cap-name">{cap.name}</div>
                         <div className="cap-desc">{cap.desc}</div>
                       </div>
                       <div className="cap-to">{cap.forge}</div>
-                    </div>
-                  </ScrollReveal>
-                ))}
-              </div>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollReveal>
             </div>
           </div>
         </section>
 
         {/* ============ FORGE ============ */}
-        <section id="forge" className="section-pad forge-section">
+        <section id="forge" className="section-pad forge-section" aria-labelledby="forge-title">
           <div className="container">
             <div className="forge-layout">
               <ScrollReveal direction="left">
                 <div className="forge-copy">
-                  <div className="section-label">Forge</div>
-                  <h2>Where creation happens.</h2>
+                  <div className="section-label">04 / Forge</div>
+                  <h2 id="forge-title">Where creation happens.</h2>
                   <p>
                     FORGE is the infrastructure layer that everything runs on.
                     A self-hosted lab and compute environment built for
@@ -356,66 +389,64 @@ export default function HomePage() {
         </section>
 
         {/* ============ PROJECTS ============ */}
-        <section className="section-pad">
+        <section className="section-pad projects-section" aria-labelledby="projects-title">
           <div className="container">
-            <ScrollReveal>
-              <div className="projects-shell">
-                <div className="projects-layout">
-                  <div className="projects-intro">
-                    <div className="section-label">Projects</div>
-                    <h2>Built on FORGE.<br />Shipped to the world.</h2>
-                    <p>The work that leaves the lab. Built with purpose. Released when it&apos;s ready.</p>
+            <div className="projects-layout">
+              <ScrollReveal direction="left">
+                <div className="projects-intro">
+                  <div className="section-label">05 / Projects</div>
+                  <h2 id="projects-title">Built on FORGE.<br />Shipped to the world.</h2>
+                  <p>The work that leaves the lab. Built with purpose. Released when it&apos;s ready.</p>
+                  <Link href="/forge/projects" className="btn-quiet">
+                    VIEW ALL PROJECTS <span aria-hidden="true">→</span>
+                  </Link>
+                </div>
+              </ScrollReveal>
+              <ScrollReveal direction="right">
+                <article className="project-feature">
+                  <div className="project-window" aria-hidden="true">
+                    <div className="project-window-bar"><i /><i /><i /></div>
+                    <div className="project-window-body">
+                      <span className="tool-chip">ToolboxHQ</span>
+                      <span className="tool-chip dim">Developer tools</span>
+                      <span className="tool-chip dim">File utilities</span>
+                    </div>
+                    <div className="tool-line" />
+                    <div className="tool-line" style={{ marginLeft: 48 }} />
+                  </div>
+                  <div className="project-meta-row">
+                    <h3>ToolboxHQ<span className="live-badge">LIVE</span></h3>
+                    <p>A suite of developer tools designed to simplify, accelerate, and streamline the development workflow.</p>
                     <Link href="/forge/projects/toolboxhq" className="btn-quiet">
-                      VIEW ALL PROJECTS <span aria-hidden="true">→</span>
+                      VISIT PROJECT <span aria-hidden="true">→</span>
                     </Link>
                   </div>
-                  <div className="project-feature">
-                    <div className="project-window" aria-hidden="true">
-                      <div className="project-window-bar"><i /><i /><i /></div>
-                      <div className="project-window-body">
-                        <span className="tool-chip">ToolboxHQ</span>
-                        <span className="tool-chip dim">Developer tools</span>
-                        <span className="tool-chip dim">File utilities</span>
-                      </div>
-                      <div className="tool-line" />
-                      <div className="tool-line" style={{ marginLeft: 48 }} />
-                    </div>
-                    <div className="project-meta-row">
-                      <div>
-                        <h3>ToolboxHQ<span className="live-badge">LIVE</span></h3>
-                        <p>A suite of developer tools designed to simplify, accelerate, and streamline the development workflow.</p>
-                        <Link href="/forge/projects/toolboxhq" className="btn-quiet">
-                          VISIT PROJECT <span aria-hidden="true">→</span>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="status-strip">
-                  {[
-                    { h: "BUILT", p: "Completed work. Live and available.", pill: "LIVE", cls: "live" },
-                    { h: "BUILDING", p: "Active projects. In progress.", pill: "ACTIVE", cls: "active" },
-                    { h: "DEVELOPING", p: "Prototypes and betas. Shaping the future.", pill: "DEVELOPMENT", cls: "" },
-                    { h: "EXPLORING", p: "Research and experiments. Pushing boundaries.", pill: "RESEARCH", cls: "" },
-                  ].map((s) => (
-                    <div className="status-cell" key={s.h}>
-                      <h4>{s.h}</h4>
-                      <p>{s.p}</p>
-                      <span className={`status-pill ${s.cls}`}>{s.pill}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                </article>
+              </ScrollReveal>
+            </div>
+            <ScrollReveal>
+              <ol className="lifecycle" aria-label="Project lifecycle">
+                {lifecycle.map((s) => (
+                  <li key={s.h} data-tone={s.tone || undefined}>
+                    <span className="lifecycle-node" aria-hidden="true" />
+                    <h4>{s.h}</h4>
+                    <p>{s.p}</p>
+                    <span className={`status-pill ${s.tone}`}>{s.pill}</span>
+                  </li>
+                ))}
+              </ol>
             </ScrollReveal>
           </div>
         </section>
 
+        <Seam index="06" />
+
         {/* ============ PHILOSOPHY ============ */}
-        <section className="section-pad philosophy" style={{ paddingBottom: 0 }}>
+        <section className="section-pad philosophy" aria-labelledby="philosophy-title">
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">Philosophy</div>
-              <h2>Build it. Break it. Understand it. Improve it.</h2>
+              <div className="section-label">06 / Philosophy</div>
+              <h2 id="philosophy-title">Build it. Break it. Understand it. Improve it.</h2>
             </ScrollReveal>
           </div>
           <TerrainMesh />

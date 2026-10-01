@@ -11,6 +11,8 @@ interface StarNode {
   purple: boolean;
   phase: number;
   speed: number;
+  /** 0.35 (far) – 1 (near): scales scroll and pointer parallax. */
+  depth: number;
 }
 
 interface Vec3 {
@@ -34,6 +36,9 @@ interface Vec3 {
  *  - Pauses when tab hidden. Node count capped + reduced on mobile.
  *  - No React re-renders during animation.
  *  - Static single frame when prefers-reduced-motion is set.
+ *  - Depth: nodes carry a depth value for scroll parallax; on fine pointers
+ *    the scene eases a few pixels toward the cursor. Neither runs when
+ *    motion is reduced.
  */
 export default function AmbientBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,6 +60,10 @@ export default function AmbientBackground() {
     let nodes: StarNode[] = [];
     let scrollY = 0;
     let t = Math.random() * 1000;
+    const finePointer = window.matchMedia("(pointer: fine)");
+    const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
+    let rx: Float32Array = new Float32Array(0);
+    let ry: Float32Array = new Float32Array(0);
 
     // Large wireframe forms. Positions are relative (0-1) so resize is cheap.
     const frames: {
@@ -119,8 +128,11 @@ export default function AmbientBackground() {
           purple,
           phase: Math.random() * Math.PI * 2,
           speed: 0.004 + Math.random() * 0.008,
+          depth: 0.35 + Math.random() * 0.65,
         };
       });
+      rx = new Float32Array(nodes.length);
+      ry = new Float32Array(nodes.length);
     }
 
     function resize() {
@@ -147,9 +159,9 @@ export default function AmbientBackground() {
     }
 
     function drawWire(f: (typeof frames)[number], size: number) {
-      const cx = f.rx * w;
+      const cx = f.rx * w + pointer.x * 14;
       // Gentle scroll parallax: structures drift slightly as user scrolls.
-      const cy = f.ry * h - Math.min(scrollY * 0.04, 120) * (f.kind === "rings" ? 0 : 1);
+      const cy = f.ry * h - Math.min(scrollY * 0.04, 120) * (f.kind === "rings" ? 0 : 1) + pointer.y * 10;
       if (f.kind === "rings") {
         // Concentric technical rings near bottom edge (philosophy terrain anchor).
         ctx.save();
@@ -199,6 +211,9 @@ export default function AmbientBackground() {
     function draw(step = 1) {
       t += step;
       ctx.clearRect(0, 0, w, h);
+      const ease = Math.min(0.05 * step, 1);
+      pointer.x += (pointer.tx - pointer.x) * ease;
+      pointer.y += (pointer.ty - pointer.y) * ease;
 
       // --- Layer 4: wireframes (behind nodes) ---
       const mobile = isMobile();
@@ -221,12 +236,19 @@ export default function AmbientBackground() {
         if (n.y < -20) n.y = h + 20;
         if (n.y > h + 20) n.y = -20;
       }
+      // Rendered positions: nearer nodes move further with scroll and pointer.
+      const span = h + 40;
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        rx[i] = n.x + pointer.x * 6 * n.depth;
+        ry[i] = ((((n.y + 20 - scrollY * 0.05 * n.depth + pointer.y * 5 * n.depth) % span) + span) % span) - 20;
+      }
       // Links first (under dots).
       ctx.lineWidth = 1;
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i], b = nodes[j];
-          const dx = a.x - b.x, dy = a.y - b.y;
+          const dx = rx[i] - rx[j], dy = ry[i] - ry[j];
           if (Math.abs(dx) > linkDist || Math.abs(dy) > linkDist) continue;
           const d = Math.hypot(dx, dy);
           if (d > linkDist) continue;
@@ -236,17 +258,18 @@ export default function AmbientBackground() {
             ? `rgba(145, 70, 255, ${o + 0.04})`
             : `rgba(190, 180, 210, ${o})`;
           ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
+          ctx.moveTo(rx[i], ry[i]);
+          ctx.lineTo(rx[j], ry[j]);
           ctx.stroke();
         }
       }
       // Dots with gentle appearing/disappearing pulse.
-      for (const n of nodes) {
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
         const tw = 0.5 + 0.5 * Math.sin(n.phase);
-        const alpha = n.purple ? 0.25 + tw * 0.45 : 0.12 + tw * 0.25;
+        const alpha = (n.purple ? 0.25 + tw * 0.45 : 0.12 + tw * 0.25) * (0.7 + 0.3 * n.depth);
         ctx.beginPath();
-        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.arc(rx[i], ry[i], n.r * (0.8 + 0.3 * n.depth), 0, Math.PI * 2);
         ctx.fillStyle = n.purple
           ? `rgba(179, 107, 255, ${alpha})`
           : `rgba(220, 212, 232, ${alpha})`;
@@ -254,7 +277,7 @@ export default function AmbientBackground() {
         // Occasional halo on purple nodes — restrained energy.
         if (n.purple && tw > 0.86) {
           ctx.beginPath();
-          ctx.arc(n.x, n.y, n.r * 4, 0, Math.PI * 2);
+          ctx.arc(rx[i], ry[i], n.r * 4, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(145, 70, 255, 0.05)`;
           ctx.fill();
         }
@@ -271,6 +294,12 @@ export default function AmbientBackground() {
 
     function onScroll() {
       scrollY = window.scrollY || 0;
+    }
+
+    function onPointer(e: PointerEvent) {
+      if (!finePointer.matches || reduced.matches || e.pointerType !== "mouse") return;
+      pointer.tx = (e.clientX / w) * 2 - 1;
+      pointer.ty = (e.clientY / h) * 2 - 1;
     }
 
     function onVisibility() {
@@ -290,6 +319,7 @@ export default function AmbientBackground() {
     onScroll();
     window.addEventListener("resize", resize);
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pointermove", onPointer, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
     if (reduced.matches) {
@@ -319,6 +349,7 @@ export default function AmbientBackground() {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pointermove", onPointer);
       document.removeEventListener("visibilitychange", onVisibility);
       if (typeof mq.removeEventListener === "function") mq.removeEventListener("change", onMq);
     };
