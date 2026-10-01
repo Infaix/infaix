@@ -14,9 +14,16 @@ function LauncherGlyph() {
   );
 }
 
+function focusable(root: HTMLElement) {
+  return [...root.querySelectorAll<HTMLElement>("a[href], button:not([disabled])")].filter(
+    (node) => !node.closest("[hidden]") && node.getClientRects().length > 0,
+  );
+}
+
 /**
  * Disclosure of ordinary links. `site` holds destinations that move into the
  * panel on compact layouts, where the header shows only the brand and trigger.
+ * Opening the panel moves focus inside it; Escape closes and restores the trigger.
  */
 export default function AppLauncher({ apps, site }: { apps: InfaixApp[]; site?: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -24,11 +31,34 @@ export default function AppLauncher({ apps, site }: { apps: InfaixApp[]; site?: 
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
+    const rootEl = root.current;
+    if (!rootEl) return;
+    const items = focusable(rootEl);
+    const firstInside = items.find((node) => node !== trigger.current);
+    firstInside?.focus();
     function outside(event: PointerEvent) {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     }
+    function keys(event: KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const nodes = focusable(rootEl!);
+      if (nodes.length === 0) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
     document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
+    rootEl.addEventListener("keydown", keys);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      rootEl.removeEventListener("keydown", keys);
+    };
   }, [open]);
   return <div className="app-launcher" ref={root}
     onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
@@ -38,13 +68,15 @@ export default function AppLauncher({ apps, site }: { apps: InfaixApp[]; site?: 
       <span className="launcher-label-wide">Apps</span>
       <span className="launcher-label-compact">Menu</span>
     </button>
-    <div id="infaix-launcher" className="launcher-panel" hidden={!open} onClick={(event) => {
+    <div id="infaix-launcher" className="launcher-panel" role="dialog" aria-modal="true" aria-label="INFAIX applications" hidden={!open} onClick={(event) => {
       if ((event.target as HTMLElement).closest("a")) setOpen(false);
     }}>
+      <span className="launcher-corner" aria-hidden="true" />
+      <span className="launcher-corner is-end" aria-hidden="true" />
       {site && <nav className="launcher-site" aria-label="Site">{site}</nav>}
       <div className="launcher-head">
         <div className="section-label">INFAIX / Applications</div>
-        <p className="launcher-intro">Independent tools. One ecosystem.</p>
+        <p className="launcher-intro">One field. Independent applications.</p>
       </div>
       <AppDirectory apps={apps} />
     </div>

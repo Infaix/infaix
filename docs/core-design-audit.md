@@ -13,7 +13,7 @@ Audited before frontend edits: `globals.css`, `layout.tsx`, `Nav`, `Footer`, hom
 | Surfaces | Thin restrained borders, 2px control corners, existing dark translucent surfaces and purple accent states |
 | Interaction | Highlight focus ring, understated hover, native links, existing reveal and reduced-motion overrides |
 
-The hero artwork, tagline, logo treatment, typography, color values and cosmic renderer were not rewritten. Added ecosystem entries use the existing border and capability-row vocabulary. Operations uses the same surfaces and type, with compact metadata and explicit unavailable states, not a new analytics theme.
+The hero artwork, logo treatment, typography families, color values and cosmic renderer were not replaced. A later visual pass retuned hero copy, the ecosystem field and the launcher surface while keeping those anchors. Added ecosystem entries use the existing border and capability-row vocabulary. Operations uses the same surfaces and type, with compact metadata and explicit unavailable states, not a new analytics theme.
 
 Performance audit: ambient rendering already uses one canvas and one requestAnimationFrame loop, capped device pixel ratio (1.5), at most 78 desktop / 30 mobile nodes, no per-frame React state, hidden-tab pause and media-query change handling. Reduced motion draws a single frame and suppresses CSS animation. No speculative particle rewrite or additional animation/library was justified. The operations chart is CSS with 24 bars and a table, no visualization dependency. New UI introduces no dependency.
 

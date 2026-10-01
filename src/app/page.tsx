@@ -254,6 +254,7 @@ export default function HomePage() {
       <main id="main-content" tabIndex={-1}>
         {/* ============ HERO ============ */}
         <section className="hero" aria-labelledby="hero-title">
+          <div className="hero-frame" aria-hidden="true"><span /><span /><span /><span /></div>
           <div className="container hero-inner">
             <div className="hero-stage">
               <HeroStructure />
@@ -261,17 +262,16 @@ export default function HomePage() {
             </div>
             <p className="hero-eyebrow">An independent technology studio</p>
             <h1 id="hero-title" className="hero-wordmark">INFAIX</h1>
-            <p className="hero-tag">BUILD WHAT&apos;S NEXT.</p>
+            <p className="hero-tag">Technology, connected.</p>
             <p className="hero-desc">
-              A growing ecosystem of software, hardware and infrastructure,
-              connected through INFAIX Core.
+              Software, hardware and infrastructure, joined through one identity.
             </p>
             <div className="hero-ctas">
               <Link href="/#ecosystem" className="btn-forge">
-                ENTER THE ECOSYSTEM <span aria-hidden="true">↓</span>
+                Explore the ecosystem <span aria-hidden="true">↓</span>
               </Link>
               <Link href="/account" className="btn-quiet">
-                YOUR ACCOUNT <span aria-hidden="true">→</span>
+                Account <span aria-hidden="true">→</span>
               </Link>
             </div>
             <HeroIndex apps={apps} />

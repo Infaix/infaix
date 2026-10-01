@@ -2,7 +2,7 @@
 
 # INFAIX
 
-**Build what's next.** A connected technology ecosystem: independent products, one INFAIX identity, joined through INFAIX Core.
+**Technology, connected.** Independent products, one INFAIX identity, joined through INFAIX Core.
 
 ## About INFAIX
 

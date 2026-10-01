@@ -10,7 +10,7 @@ export default function AdminPage() {
     <section className="ops-head"><div className="container ops-container">
       <div className="section-label">INFAIX Core / Operations</div>
       <h1>Operations Console</h1>
-      <p>Identity, applications and the systems that connect them.</p>
+      <p>Identity, applications and the systems that connect them. Figures appear only when the Worker can supply them.</p>
     </div></section>
     <section className="ops-section"><div className="container ops-container"><OperationsConsole /></div></section>
   </main><Footer /></>;
