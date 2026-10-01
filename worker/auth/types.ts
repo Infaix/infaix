@@ -45,6 +45,9 @@ export interface Env {
   COOKIE_DOMAIN?: string;
   /** Comma-separated extra allowed CORS origins (additive, https recommended). */
   CORS_EXTRA_ORIGINS?: string;
+  CHAT_IDENTITY_PRIVATE_KEY?: string;
+  CHAT_IDENTITY_AUDIENCE?: string;
+  CHAT_ORIGIN?: string;
 }
 
 // Minimal structural subset of the Cloudflare D1 API we rely on, so the

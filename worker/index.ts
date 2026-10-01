@@ -6,6 +6,8 @@
 import { handleApi } from "./auth/router";
 import { corsHeaders, handlePreflight } from "./auth/cors";
 import type { Env } from "./auth/types";
+import { getPublicApps } from "../src/lib/app-registry";
+import { requestMetadata } from "./telemetry";
 
 // Maps a flat RSC payload request (client form) to the nested file path
 // produced by `next build` with `output: "export"` (disk form).
@@ -114,6 +116,10 @@ const worker = {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    if (pathname === "/api/apps" && request.method === "GET") {
+      return secureHeaders(Response.json({ version: 1, applications: getPublicApps() }, { headers: { "cache-control": "public, max-age=300" } }));
+    }
+
     // Account API takes precedence over static files under /api/.
     if (pathname.startsWith("/api/")) {
       const preflight = handlePreflight(request, env, url.origin);
@@ -131,12 +137,12 @@ const worker = {
       try {
         const res = await handleApiRequest(request, env, url, executionCtx);
         if (res) return res;
-      } catch (e) {
+      } catch {
         // Never leak internals; static site keeps working regardless.
         if (pathname === "/api/auth/register") {
           console.error(JSON.stringify({ phase: "register:unhandled", elapsed_ms: 0, request_id: "edge-catch", pbkdf2_iterations: 0 }));
         } else {
-          console.error("api error", e instanceof Error ? e.message : "unknown");
+          console.error(JSON.stringify({ event: "core_api_error", error_code: "INTERNAL" }));
         }
         return secureHeaders(
           withCors(
@@ -184,4 +190,17 @@ const worker = {
   },
 };
 
-export default worker;
+const instrumentedWorker = {
+  async fetch(request: Request, env: Env, executionCtx: { waitUntil(task: Promise<unknown>): void }): Promise<Response> {
+    const started = Date.now();
+    const response = await worker.fetch(request, env, executionCtx);
+    const pathname = new URL(request.url).pathname;
+    if (pathname.startsWith("/api/")) {
+      console.log(JSON.stringify(requestMetadata(request, response.status, started, Date.now())));
+      if (pathname !== "/api/apps") response.headers.set("cache-control", "no-store");
+    }
+    return response;
+  },
+};
+
+export default instrumentedWorker;

@@ -3,6 +3,8 @@ import ScrollReveal from "@/components/ScrollReveal";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import InfaixLogo from "@/components/infaix-logo";
+import AppDirectory from "@/components/app-directory";
+import { getPublicApps } from "@/lib/app-registry";
 
 const capabilities = [
   {
@@ -200,16 +202,16 @@ export default function HomePage() {
                     <h1>INFAIX</h1>
                     <div className="hero-tag">BUILD WHAT&apos;S NEXT.</div>
                     <p className="hero-desc">
-                      INFAIX is an independent technology studio.
-                      We build at the intersection of software, hardware,
-                      and infrastructure.
+                      An independent technology studio. A growing ecosystem
+                      of software, hardware and infrastructure — connected
+                      through INFAIX Core.
                     </p>
                     <div className="hero-ctas">
-                      <Link href="/forge" className="btn-forge">
-                        ENTER FORGE <span aria-hidden="true">→</span>
+                      <Link href="/#ecosystem" className="btn-forge">
+                        EXPLORE ECOSYSTEM <span aria-hidden="true">→</span>
                       </Link>
-                      <Link href="/ai" className="btn-quiet">
-                        INFAIX AI <span aria-hidden="true">→</span>
+                      <Link href="/account" className="btn-quiet">
+                        YOUR ACCOUNT <span aria-hidden="true">→</span>
                       </Link>
                     </div>
                   </ScrollReveal>
@@ -220,6 +222,15 @@ export default function HomePage() {
                 <HeroWireframe />
               </div>
             </div>
+          </div>
+        </section>
+
+        <section id="ecosystem" className="section-pad ecosystem-section" aria-labelledby="ecosystem-title">
+          <div className="container">
+            <div className="section-label">Connected by Core</div>
+            <h2 id="ecosystem-title">INFAIX Ecosystem</h2>
+            <p className="ecosystem-intro">Independent applications. One INFAIX identity. Explore what is available, and what comes next.</p>
+            <AppDirectory apps={getPublicApps()} />
           </div>
         </section>
 

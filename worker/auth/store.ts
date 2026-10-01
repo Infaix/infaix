@@ -12,6 +12,7 @@ import type {
   UserRow,
   VerificationRow,
 } from "./types";
+import type { OperationsSnapshot } from "../../src/lib/operations-contract";
 
 export interface UserUpdate {
   password_hash?: string;
@@ -25,6 +26,7 @@ export interface UserUpdate {
 }
 
 export interface Store {
+  operationsSnapshot(from: number, to: number, bucketMs: number): Promise<OperationsSnapshot>;
   // users
   getUserById(id: string): Promise<UserRow | null>;
   getUserByEmail(email: string): Promise<UserRow | null>;
@@ -80,6 +82,18 @@ export interface Store {
 
 export class D1Store implements Store {
   constructor(private db: D1Like) {}
+
+  async operationsSnapshot(from: number, to: number, bucketMs: number): Promise<OperationsSnapshot> {
+    const [users, sessions, events, recent, activity] = await Promise.all([
+      this.db.prepare("SELECT COUNT(*) AS totalUsers, COALESCE(SUM(CASE WHEN created_at >= ? AND created_at < ? THEN 1 ELSE 0 END), 0) AS recentUsers FROM users").bind(from, to).first<{ totalUsers: number; recentUsers: number }>(),
+      this.db.prepare("SELECT COUNT(*) AS count FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.expires_at > ? AND u.status = 'ACTIVE'").bind(to).first<{ count: number }>(),
+      this.db.prepare("SELECT event, COUNT(*) AS count FROM audit_log WHERE created_at >= ? AND created_at < ? GROUP BY event").bind(from, to).all<{ event: string; count: number }>(),
+      this.db.prepare("SELECT event, created_at FROM audit_log WHERE created_at >= ? AND created_at < ? ORDER BY created_at DESC, id DESC LIMIT 30").bind(from, to).all<{ event: string; created_at: number }>(),
+      this.db.prepare("SELECT CAST((created_at - ?) / ? AS INTEGER) AS bucket, COUNT(*) AS count FROM audit_log WHERE created_at >= ? AND created_at < ? GROUP BY bucket ORDER BY bucket").bind(from, bucketMs, from, to).all<{ bucket: number; count: number }>(),
+    ]);
+    if (!users || !sessions) throw new Error("Missing aggregates");
+    return { ...users, activeSessions: sessions.count, events: events.results, recentEvents: recent.results, activity: activity.results };
+  }
 
   async getUserById(id: string): Promise<UserRow | null> {
     return this.db.prepare("SELECT * FROM users WHERE id = ?").bind(id).first<UserRow>();

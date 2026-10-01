@@ -4,6 +4,25 @@ import type { Store, UserUpdate } from "./store";
 import type { AuditEvent, ConversationRow, InvitationRow, MessageRow, ResetRow, SessionRow, UserRow, VerificationRow } from "./types";
 
 export class MemoryStore implements Store {
+  async operationsSnapshot(from: number, to: number, bucketMs: number) {
+    const users = [...this.users.values()];
+    const events = this.audits.filter((e) => e.created_at >= from && e.created_at < to);
+    const counts = new Map<string, number>();
+    const buckets = new Map<number, number>();
+    for (const e of events) {
+      counts.set(e.event, (counts.get(e.event) ?? 0) + 1);
+      const bucket = Math.floor((e.created_at - from) / bucketMs);
+      buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
+    }
+    return {
+      totalUsers: users.length,
+      recentUsers: users.filter((u) => u.created_at >= from && u.created_at < to).length,
+      activeSessions: [...this.sessions.values()].filter((s) => s.expires_at > to && this.users.get(s.user_id)?.status === "ACTIVE").length,
+      events: [...counts].map(([event, count]) => ({ event, count })),
+      recentEvents: events.toSorted((a, b) => b.created_at - a.created_at).slice(0, 30).map(({ event, created_at }) => ({ event, created_at })),
+      activity: [...buckets].sort(([a], [b]) => a - b).map(([bucket, count]) => ({ bucket, count })),
+    };
+  }
   users = new Map<string, UserRow>();
   byEmail = new Map<string, string>();
   invitations = new Map<string, InvitationRow>();

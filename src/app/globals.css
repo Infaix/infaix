@@ -1702,6 +1702,85 @@ footer {
 
 /* ================= owner admin ================= */
 
+/* Core extends the existing palette, angular surfaces and quiet interactions. */
+.nav-tools { display: flex; align-items: center; gap: 18px; }
+.nav-account, .launcher-trigger { font-size: 12px; letter-spacing: 0.1em; }
+.nav-account { padding: 12px 0; color: var(--muted); }
+.nav-account:hover { color: var(--text); }
+.nav-github-secondary { display: none; }
+.launcher-trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; color: var(--text); border: 1px solid var(--border); background: var(--surface); border-radius: 2px; cursor: pointer; font-family: var(--font-display); }
+.launcher-trigger:hover, .launcher-trigger[aria-expanded="true"] { border-color: var(--highlight); }
+.app-launcher { position: relative; }
+.launcher-panel { position: absolute; top: calc(100% + 16px); right: 0; width: min(440px, calc(100vw - 48px)); max-height: min(650px, 75svh); overflow-y: auto; padding: 24px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 16px 48px rgba(0,0,0,0.35); }
+.launcher-panel[hidden] { display: none; }
+.launcher-intro { margin-bottom: 20px; color: var(--muted); font-size: 14px; }
+.app-directory { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+.app-directory > li { min-width: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.app-entry { display: flex; gap: 20px; padding: 28px; height: 100%; background: rgba(17,16,25,0.62); transition: background 0.25s ease; }
+a.app-entry:hover { background: var(--surface2); }
+.app-glyph { font-size: 28px; line-height: 1; color: var(--highlight); flex-shrink: 0; }
+.app-copy { min-width: 0; flex: 1; }
+.app-title { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+.app-title h3 { font-size: 18px; }
+.app-title .status-pill { margin: 0; font-size: 10px; }
+.app-entry p, .app-access { font-size: 13px; color: var(--muted); }
+.app-access { display: block; margin-top: 18px; }
+.compact { grid-template-columns: 1fr; border-left: 0; }
+.compact > li { border-right: 0; }
+.compact .app-entry { padding: 18px 0; background: transparent; }
+.compact .app-entry:hover { background: var(--surface2); }
+.compact .app-title { margin-bottom: 6px; }
+.compact .app-title h3 { font-size: 15px; }
+.compact .app-access { margin-top: 8px; }
+.ecosystem-section { scroll-margin-top: 150px; }
+.ecosystem-section h2 { font-size: clamp(28px, 4vw, 40px); }
+.ecosystem-intro { color: var(--muted); max-width: 640px; margin: 20px 0 32px; }
+.ops-layout { display: grid; grid-template-columns: 164px minmax(0, 1fr); gap: 32px; }
+.page-hero.ops-hero { padding: 64px 0 24px; }
+.ops-hero h1 { font-size: clamp(30px, 5vw, 48px); letter-spacing: 0.02em; }
+.section-pad.ops-section { padding-top: 20px; }
+.launcher-panel, .ops-controls select { color-scheme: dark; }
+.ops-nav { display: flex; flex-direction: column; align-self: start; gap: 4px; }
+.ops-nav button { border: 1px solid transparent; background: transparent; color: var(--muted); padding: 12px 16px; text-align: left; cursor: pointer; font: inherit; font-size: 14px; }
+.ops-nav button:hover, .ops-nav button[aria-current] { color: var(--text); background: var(--surface); border-color: var(--border); }
+.ops-nav button[aria-current] { border-left-color: var(--highlight); }
+.ops-content { min-width: 0; }
+.ops-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 28px; }
+.ops-toolbar h2 { font-size: 28px; }
+.ops-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; }
+.ops-controls select { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 12px; margin-left: 8px; }
+.ops-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ops-panel { border: 1px solid var(--border); background: rgba(17,16,25,0.75); padding: 24px; margin-bottom: 20px; min-width: 0; }
+.ops-panel h3 { font-size: 17px; margin-bottom: 16px; }
+.ops-panel p { font-size: 14px; margin: 12px 0; }
+.ops-muted { color: var(--muted); font-size: 12px; }
+.ops-number { font-family: var(--font-display); font-size: 36px; }
+.ops-panel .btn-quiet { background: transparent; border: 0; cursor: pointer; }
+.ops-events { list-style: none; }
+.ops-events li { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.ops-events time { color: var(--muted); }
+.ops-chart { display: flex; height: 160px; gap: 4px; align-items: flex-end; margin: 32px 0; border-bottom: 1px solid var(--border); }
+.ops-chart > div { position: relative; flex: 1; height: 100%; display: flex; align-items: center; justify-content: flex-end; flex-direction: column; }
+.ops-chart i { display: block; width: 100%; background: var(--purple); max-height: 130px; }
+.ops-chart span { font-size: 10px; color: var(--muted); }
+.ops-panel summary { cursor: pointer; padding: 12px 0; color: var(--highlight); }
+.ops-panel td { overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .nav-tools { margin-left: auto; }
+  .ops-layout { grid-template-columns: 1fr; }
+  .ops-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .ops-nav button { padding: 10px 12px; }
+}
+@media (max-width: 560px) {
+  .app-directory, .ops-metrics { grid-template-columns: 1fr; }
+  .app-entry { padding: 24px 20px; }
+  .nav-tools { gap: 10px; }
+  .app-launcher { position: static; }
+  .launcher-panel { position: absolute; top: 100%; left: 24px; right: 24px; width: auto; }
+  .ops-panel { padding: 20px; }
+  .brand-mark span { font-size: 14px; letter-spacing: 0.18em; }
+}
+
 .admin-table-wrap {
   overflow-x: auto;
   margin: 0 -4px;

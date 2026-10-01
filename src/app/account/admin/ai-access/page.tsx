@@ -3,6 +3,7 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import AuthShell from "@/components/auth-shell";
 import AiAccessManager from "./manager";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "AI access administration",
@@ -21,6 +22,7 @@ export default function AiAccessAdminPage() {
           desc="Manage which active INFAIX users can access INFAIX AI. Changes take effect immediately and are audit-logged."
           wide
         >
+          <p className="auth-links"><Link href="/admin">← Operations Console</Link></p>
           <AiAccessManager />
         </AuthShell>
       </main>
