@@ -11,6 +11,24 @@
   --muted: #9b96a5;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /* ---- crystal family ------------------------------------------------
+     Sampled directly from the canonical logo asset. The mark is not the
+     brand purple: it is a pale, cold crystal (#e8c4f6 at its brightest)
+     over a periwinkle mid (#a097c8), with the saturated violet confined
+     to the core. The site previously carried only the two purples, which
+     made it indistinguishable from any dark product page. These two values
+     are what tie every surface back to the mark. */
+  --crystal: #e8c4f6;
+  --periwinkle: #a097c8;
+  --periwinkle-deep: #7d76a8;
+
+  --crystal-wash: rgba(232, 196, 246, 0.07);
+  --crystal-line: rgba(232, 196, 246, 0.34);
+  --crystal-glow: rgba(232, 196, 246, 0.22);
+  --peri-wash: rgba(160, 151, 200, 0.08);
+  --peri-line: rgba(160, 151, 200, 0.3);
+  --peri-faint: rgba(160, 151, 200, 0.14);
+
   /* Aliases of the palette above (and the existing functional success/error
      colours). No new hues: alpha steps of existing tokens only. */
   --success: #7ee2b0;
@@ -27,6 +45,143 @@
   --t-standard: 240ms;
   --t-enter: 300ms;
   --header-h: 76px;
+
+  /* Instrument rhythm: the page is built from three composition modes, and
+     these are the measurements they share. */
+  --rail-w: 236px;
+  --gap-rail: 56px;
+  --pad-section: 84px;
+}
+
+/* ================= instrument label system =================
+   One typographic treatment for every machine-spoken string: section
+   indices, node captions, status chips, console headers, timestamps. The
+   identity of the label is its extreme tracking and its small size, not the
+   typeface. */
+
+.instrument-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--periwinkle);
+}
+
+.instrument-label.is-centered {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.instrument-index {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--purple);
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 18px;
+}
+
+.instrument-note {
+  color: var(--muted);
+  font-size: 14.5px;
+  line-height: 1.7;
+  max-width: 34ch;
+  margin-top: 18px;
+}
+
+/* Instrument composition: a narrow left rail carrying the index and the
+   section identity, with the content field beside it. */
+.instrument {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  gap: var(--gap-rail);
+  align-items: start;
+}
+
+.instrument-rail {
+  position: relative;
+}
+
+/* The spine: a single vertical axis per instrument section. */
+.instrument-rail::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    var(--purple-line) 0%,
+    var(--peri-line) 34%,
+    transparent 100%
+  );
+}
+
+.instrument-head {
+  position: relative;
+  padding-left: 22px;
+}
+
+.instrument-head h2,
+.band-head h2 {
+  margin-top: 10px;
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 400;
+  line-height: 1.14;
+}
+
+.instrument-action {
+  margin-top: 22px;
+}
+
+/* Wide data band: full width, no rail, for genuinely tabular content. */
+.band {
+  position: relative;
+}
+
+.band-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.62fr);
+  gap: 18px 40px;
+  align-items: end;
+  padding-bottom: 26px;
+  margin-bottom: 34px;
+  border-bottom: 1px solid var(--line-faint);
+}
+
+.band-note {
+  color: var(--muted);
+  font-size: 14.5px;
+  line-height: 1.7;
+  max-width: 42ch;
+}
+
+@media (max-width: 1000px) {
+  .instrument {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+  .instrument-rail::before { display: none; }
+  .instrument-head { padding-left: 0; }
+  .instrument-index { font-size: 34px; margin-bottom: 12px; }
+  .instrument-note { max-width: 52ch; }
+  .band-head {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px 28px;
+  }
+  .band-note { grid-column: 2; max-width: 60ch; }
+}
+
+@media (max-width: 560px) {
+  .band-head { grid-template-columns: 1fr; gap: 10px; }
+  .band-note { grid-column: auto; }
+  .instrument-index { font-size: 30px; }
 }
 
 @theme inline {
@@ -36,6 +191,8 @@
   --color-border: var(--border);
   --color-purple: var(--purple);
   --color-highlight: var(--highlight);
+  --color-crystal: var(--crystal);
+  --color-periwinkle: var(--periwinkle);
   --color-ink: var(--text);
   --color-muted: var(--muted);
   --font-sans: "Inter", sans-serif;
@@ -95,6 +252,46 @@ svg {
 :focus-visible {
   outline: 2px solid var(--highlight);
   outline-offset: 3px;
+}
+
+/* Panels and overlays carry their own scroll surface. The console panel and
+   the application lists are instruments, not browser defaults. */
+.launcher-panel,
+.app-directory,
+.admin-table-wrap,
+.ai-messages {
+  scrollbar-width: thin;
+  scrollbar-color: var(--peri-line) transparent;
+}
+
+.launcher-panel::-webkit-scrollbar,
+.app-directory::-webkit-scrollbar,
+.admin-table-wrap::-webkit-scrollbar,
+.ai-messages::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.launcher-panel::-webkit-scrollbar-track,
+.app-directory::-webkit-scrollbar-track,
+.admin-table-wrap::-webkit-scrollbar-track,
+.ai-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.launcher-panel::-webkit-scrollbar-thumb,
+.app-directory::-webkit-scrollbar-thumb,
+.admin-table-wrap::-webkit-scrollbar-thumb,
+.ai-messages::-webkit-scrollbar-thumb {
+  background: var(--peri-line);
+  border-radius: 0;
+}
+
+.launcher-panel::-webkit-scrollbar-thumb:hover,
+.app-directory::-webkit-scrollbar-thumb:hover,
+.admin-table-wrap::-webkit-scrollbar-thumb:hover,
+.ai-messages::-webkit-scrollbar-thumb:hover {
+  background: var(--purple-line);
 }
 
 h1,
@@ -206,11 +403,6 @@ h4 {
   background: radial-gradient(ellipse 90% 80% at 50% 40%, transparent 55%, rgba(4, 3, 7, 0.55) 100%);
 }
 
-/* legacy grid-bg hook: superseded by ambient, keep harmless */
-.grid-bg {
-  display: none;
-}
-
 /* ================= reveal-on-scroll ================= */
 /* Content is fully visible by default. The hidden/animated states only apply
    once JS is confirmed running (ScrollReveal adds `.js` to <html>), so text
@@ -241,48 +433,33 @@ h4 {
 
 /* ================= buttons ================= */
 
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 15px 28px;
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: 2px;
-  cursor: pointer;
-  background: var(--purple);
-  color: #fff;
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.3s var(--ease-out);
-}
-
-.btn-primary:hover {
-  background: #9f5bff;
-  box-shadow: 0 0 20px rgba(145, 70, 255, 0.22);
-  transform: translateY(-2px);
-}
-
+/* The crystal-light primary: the mark's own colour carries the action. */
 .btn-forge {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 26px;
+  gap: 11px;
+  padding: 13px 24px;
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  border-radius: 3px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border-radius: 2px;
   cursor: pointer;
-  color: var(--text);
-  background: rgba(145, 70, 255, 0.08);
-  border: 1px solid rgba(145, 70, 255, 0.55);
-  box-shadow: inset 0 0 18px rgba(145, 70, 255, 0.08);
-  transition: box-shadow 0.3s ease, background 0.3s ease, transform 0.3s var(--ease-out);
+  color: var(--crystal);
+  background: var(--crystal-wash);
+  border: 1px solid var(--crystal-line);
+  box-shadow: inset 0 0 18px rgba(232, 196, 246, 0.06);
+  transition: box-shadow var(--t-standard) ease, background var(--t-standard) ease,
+    border-color var(--t-standard) ease, color var(--t-standard) ease,
+    transform var(--t-standard) var(--ease-out);
 }
 
 .btn-forge:hover {
-  background: rgba(145, 70, 255, 0.16);
-  box-shadow: 0 0 18px rgba(145, 70, 255, 0.18), inset 0 0 18px rgba(145, 70, 255, 0.12);
+  color: #fff;
+  background: var(--purple);
+  border-color: var(--purple);
+  box-shadow: 0 0 24px rgba(145, 70, 255, 0.28), inset 0 0 18px rgba(145, 70, 255, 0.16);
   transform: translateY(-2px);
 }
 
@@ -357,7 +534,7 @@ header nav {
 
 .brand-mark .mark-holder {
   position: relative;
-  height: 34px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -365,17 +542,22 @@ header nav {
 
 .brand-mark img,
 .infaix-logo-img,
-.infaix-hero-img {
+.infaix-hero-img,
+.infaix-launcher-img {
   /* Official asset has a baked-in black background. Screen blending drops
-     the black on our near-black surfaces without altering the artwork. */
+     the black on our near-black surfaces without altering the artwork; the
+     shared black-point filter (components/logo-filter.tsx) removes what
+     remains on surfaces that carry their own translucency, such as the
+     header and the console panel. */
   mix-blend-mode: screen;
-  transition: transform 0.5s ease, filter 0.4s ease;
+  filter: url("#infaix-black-point");
+  transition: transform 0.5s ease;
   position: relative;
   z-index: 1;
 }
 
 .brand-mark:hover img {
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
 
 /* Last-resort brand mark if the logo asset itself is unreachable.
@@ -393,16 +575,19 @@ header nav {
 .brand-mark span {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 17px;
-  letter-spacing: 0.28em;
+  font-size: 16px;
+  letter-spacing: 0.3em;
+  color: var(--crystal);
 }
 
 .nav-links {
   display: flex;
   align-items: center;
   gap: clamp(16px, 3vw, 40px);
-  font-size: 13px;
-  letter-spacing: 0.1em;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -435,20 +620,6 @@ header nav {
   transform: scaleX(1);
 }
 
-.nav-github {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-  transition: color 0.25s ease;
-}
-
-.nav-github:hover {
-  color: var(--text);
-}
-
 .nav-links a { min-height: 44px; display: inline-flex; align-items: center; }
 
 /* Compact: brand + one Menu trigger. Site and account destinations move
@@ -459,6 +630,24 @@ header nav {
 }
 
 /* ================= logo component ================= */
+
+/* Compact insignia for the console panel. */
+.infaix-launcher-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 78px;
+  flex: 0 0 auto;
+}
+
+.infaix-launcher-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 
 .infaix-hero-mark {
   position: relative;
@@ -505,7 +694,6 @@ header nav {
   position: relative;
   z-index: 1;
   animation: logo-float 9s ease-in-out infinite alternate;
-  filter: url(#infaix-black-point);
 }
 
 @keyframes logo-float {
@@ -521,7 +709,7 @@ header nav {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 48px 0 0;
+  padding: 32px 0 0;
   overflow: clip;
 }
 
@@ -550,13 +738,15 @@ header nav {
   text-align: center;
 }
 
+/* Sized so the complete hero — stage, wordmark, tagline, description, CTAs
+   and the registry index — resolves above the fold at 1440x900. */
 .hero-stage {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(520px, 100%);
-  height: 480px;
-  margin-bottom: 4px;
+  width: min(430px, 100%);
+  height: 344px;
+  margin-bottom: 2px;
 }
 
 /* No ancestor of the logo may create a stacking context: its screen blend
@@ -565,7 +755,7 @@ header nav {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(620px, 120vw);
+  width: min(510px, 116vw);
   height: auto;
   max-width: none;
   transform: translate(-50%, -50%);
@@ -582,28 +772,63 @@ header nav {
   to { transform: translate(-50%, -50%) rotate(2deg) scale(1.015); }
 }
 
+/* Ghosted inner geometry and the outline: periwinkle, not violet. The violet
+   stays reserved for the energy that converges on the insignia. */
+.hero-ghost { stroke: rgba(160, 151, 200, 0.16); }
+.hero-outline { stroke: rgba(160, 151, 200, 0.42); }
+
+/* Spokes resolve once, on first view, in sequence toward the centre. This is
+   the one place on the page where motion carries meaning. */
+.hero-spoke {
+  stroke: var(--purple-line);
+  stroke-dasharray: 2 6;
+  animation: spoke-resolve 1.1s var(--ease-out) both;
+  animation-delay: calc(0.5s + var(--i, 0) * 0.11s);
+}
+
+@keyframes spoke-resolve {
+  from { stroke-dashoffset: 210; opacity: 0; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
+.hero-node-dot {
+  fill: rgba(200, 190, 225, 0.5);
+}
+
+.hero-node.is-lit .hero-node-dot { fill: var(--highlight); }
+
+.hero-node-halo {
+  fill: rgba(145, 70, 255, 0.1);
+  animation: node-breathe 6s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes node-breathe {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
 .infaix-hero-mark.is-insignia {
-  width: min(520px, 100%);
-  height: 480px;
+  width: min(430px, 100%);
+  height: 344px;
 }
 
 .is-insignia .infaix-hero-glow {
-  width: 320px;
-  height: 360px;
+  width: 248px;
+  height: 282px;
 }
 
 .is-insignia .infaix-hero-rings {
   inset: auto;
-  width: 470px;
-  height: 470px;
+  width: 344px;
+  height: 344px;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
 }
 
 .is-insignia .infaix-hero-img {
-  width: 156px;
-  height: 390px;
+  width: 114px;
+  height: 288px;
   max-width: none;
 }
 
@@ -620,39 +845,41 @@ header nav {
   font-size: 12px;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 18px;
+  color: var(--periwinkle);
+  margin-bottom: 14px;
 }
 
 .hero-wordmark {
-  font-size: clamp(56px, 10vw, 132px);
-  letter-spacing: 0.14em;
-  padding-left: 0.14em;
+  font-size: clamp(52px, 8.4vw, 112px);
+  letter-spacing: 0.16em;
+  padding-left: 0.16em;
   font-weight: 500;
-  line-height: 0.9;
-  text-shadow: 0 0 60px rgba(145, 70, 255, 0.25);
+  line-height: 0.92;
+  /* The wordmark carries the crystal light — the colour the mark actually is. */
+  color: var(--crystal);
+  text-shadow: 0 0 70px rgba(232, 196, 246, 0.22), 0 0 120px rgba(145, 70, 255, 0.18);
   animation: wordmark-in 1.4s 0.15s var(--ease-out) backwards;
 }
 
 @keyframes wordmark-in {
-  from { opacity: 0; letter-spacing: 0.34em; }
+  from { opacity: 0; letter-spacing: 0.36em; }
 }
 
 .hero-tag {
-  margin-top: 22px;
+  margin-top: 16px;
   font-family: var(--font-display);
-  font-size: clamp(18px, 2.2vw, 28px);
-  letter-spacing: 0.01em;
+  font-size: clamp(18px, 2.1vw, 26px);
+  letter-spacing: 0.02em;
   font-weight: 400;
   color: var(--text);
   line-height: 1.3;
 }
 
 .hero-desc {
-  max-width: 440px;
-  margin: 18px auto 34px;
+  max-width: 430px;
+  margin: 12px auto 26px;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 15.5px;
   line-height: 1.7;
 }
 
@@ -660,7 +887,7 @@ header nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px 30px;
+  gap: 12px 28px;
   flex-wrap: wrap;
 }
 
@@ -681,15 +908,15 @@ header nav {
   from { opacity: 0; transform: translateY(10px); }
 }
 
-/* Registry summary: typographic, derived from the public projection. */
+/* Registry summary: an instrument reading, not a caption. */
 .hero-index {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px 36px;
-  width: min(760px, 100%);
-  margin: 64px auto 0;
-  padding-top: 22px;
+  gap: 8px 40px;
+  width: min(720px, 100%);
+  margin: 34px auto 0;
+  padding-top: 18px;
   border-top: 1px solid var(--line-faint);
   font-family: var(--font-display);
   font-size: 11px;
@@ -707,30 +934,35 @@ header nav {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--muted);
+  color: var(--periwinkle);
 }
 
-.hero-index dt::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  border: 1px solid var(--muted);
+.hero-index-dot {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  border: 1px solid var(--periwinkle-deep);
+  background: var(--void);
 }
 
-.hero-index [data-status="live"] dt::before {
-  background: var(--success);
-  border-color: var(--success);
+.hero-index [data-status="live"] .hero-index-dot {
+  background: var(--crystal);
+  border-color: var(--crystal);
+  box-shadow: 0 0 8px var(--crystal-glow);
 }
 
-.hero-index dd { color: #d9d4e4; }
+.hero-index dd {
+  color: #d9d4e4;
+  font-variant-numeric: tabular-nums;
+}
+
 .hero-index [data-status="later"] dd { color: var(--muted); }
 
 .hero-axis {
   position: relative;
   width: 1px;
-  height: clamp(64px, 12svh, 120px);
-  margin: 40px auto 0;
+  height: clamp(40px, 6svh, 60px);
+  margin: 20px auto 0;
   background: linear-gradient(to bottom, rgba(145, 70, 255, 0), var(--purple-line));
   overflow: hidden;
 }
@@ -750,33 +982,50 @@ header nav {
   60%, 100% { transform: translateY(100%); opacity: 0; }
 }
 
-@media (max-height: 760px) and (min-width: 761px) {
-  .hero-stage, .infaix-hero-mark.is-insignia { height: 340px; }
-  .is-insignia .infaix-hero-img { height: 260px; width: auto; }
-  .is-insignia .infaix-hero-rings { width: 320px; height: 320px; }
-  .is-insignia .infaix-hero-glow { width: 220px; height: 250px; }
-  .hero-index { margin-top: 36px; }
+@media (max-height: 800px) and (min-width: 761px) {
+  .hero-stage, .infaix-hero-mark.is-insignia { height: 320px; }
+  .is-insignia .infaix-hero-img { height: 268px; width: auto; }
+  .is-insignia .infaix-hero-rings { width: 318px; height: 318px; }
+  .is-insignia .infaix-hero-glow { width: 224px; height: 254px; }
+  .hero-index { margin-top: 24px; }
+  .hero-desc { margin-bottom: 20px; }
 }
 
 @media (max-width: 760px) {
-  .hero { min-height: auto; padding-top: 36px; }
+  .hero { min-height: auto; padding-top: 28px; }
   .hero-frame { inset: 12px 12px 0; }
   .hero-frame span:nth-child(3),
   .hero-frame span:nth-child(4) { bottom: 28px; }
-  .hero-stage, .infaix-hero-mark.is-insignia { height: 360px; }
-  .is-insignia .infaix-hero-glow { width: 220px; height: 260px; }
-  .is-insignia .infaix-hero-rings { width: 340px; height: 340px; }
-  .is-insignia .infaix-hero-img { height: 280px; width: auto; }
-  .hero-structure { width: 118vw; }
+  .hero-stage, .infaix-hero-mark.is-insignia { height: 320px; }
+  .is-insignia .infaix-hero-glow { width: 208px; height: 244px; }
+  .is-insignia .infaix-hero-rings { width: 306px; height: 306px; }
+  .is-insignia .infaix-hero-img { height: 262px; width: auto; }
+  .hero-structure { width: 116vw; }
   .hero-eyebrow { font-size: 11px; letter-spacing: 0.22em; }
-  .hero-wordmark { letter-spacing: 0.16em; padding-left: 0.16em; }
+  .hero-wordmark { letter-spacing: 0.14em; padding-left: 0.14em; }
   .hero-tag { font-size: 20px; }
-  .hero-index { margin-top: 40px; flex-direction: column; align-items: center; }
+  .hero-index { margin-top: 28px; flex-direction: column; align-items: center; gap: 8px; }
+  .hero-axis { height: 40px; margin-top: 20px; }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 380px) {
   .hero-eyebrow { font-size: 10px; letter-spacing: 0.16em; }
-  .hero-wordmark { font-size: 44px; letter-spacing: 0.14em; padding-left: 0.14em; }
+  /* The crystal treatment is kept, but its halo is pulled in. At this width
+     the glow's spread reaches the tagline, CTAs and registry index and
+     competes with the insignia for attention. Tightening the shadow keeps the
+     wordmark the focal point without letting it flatten the rest of the hero
+     into a wash. */
+  .hero-wordmark {
+    font-size: 40px;
+    letter-spacing: 0.12em;
+    padding-left: 0.12em;
+    text-shadow: 0 0 26px rgba(232, 196, 246, 0.16), 0 0 58px rgba(145, 70, 255, 0.1);
+  }
+  .hero-tag { font-size: 18px; }
+  .hero-stage, .infaix-hero-mark.is-insignia { height: 286px; }
+  .is-insignia .infaix-hero-rings { width: 274px; height: 274px; }
+  .is-insignia .infaix-hero-img { height: 234px; width: auto; }
+  .hero-ctas { gap: 10px; }
   .hero-ctas .btn-forge { width: 100%; justify-content: center; }
 }
 
@@ -787,43 +1036,40 @@ section {
 }
 
 .section-pad {
-  padding: 112px 0;
+  padding: var(--pad-section) 0;
 }
 
 @media (max-width: 760px) {
   .section-pad {
-    padding: 72px 0;
+    padding: 52px 0;
+  }
+  :root {
+    --pad-section: 52px;
   }
 }
 
 .section-label {
-  font-size: 12px;
-  letter-spacing: 0.22em;
-  color: var(--highlight);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: var(--periwinkle);
   text-transform: uppercase;
-  margin-bottom: 18px;
-  opacity: 0.9;
+  margin-bottom: 16px;
 }
 
 .section-head {
   max-width: 660px;
-  margin-bottom: 56px;
-}
-
-.section-head.is-centered {
-  text-align: center;
-  margin-inline: auto;
+  margin-bottom: 40px;
 }
 
 .section-head h2 {
-  font-size: clamp(30px, 4.4vw, 48px);
+  font-size: clamp(28px, 4vw, 44px);
   font-weight: 400;
-  line-height: 1.12;
+  line-height: 1.14;
 }
 
 .section-head p {
   color: var(--muted);
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 /* Seam: the vertical axis that carries the reader between sections. */
@@ -831,7 +1077,13 @@ section {
   position: relative;
   display: flex;
   justify-content: center;
-  height: 112px;
+  height: 84px;
+}
+
+/* The seam is a connective axis, not content. On a narrow screen it can carry
+   its node in less travel. Declared after the base rule so it wins. */
+@media (max-width: 760px) {
+  .seam { height: 56px; }
 }
 
 .seam::before {
@@ -876,113 +1128,166 @@ section {
   }
 }
 
-/* ================= ecosystem map: Core at the centre of a field ================= */
-
-.ecosystem-section {
-  padding-top: 8px;
-  scroll-margin-top: calc(var(--header-h) + 8px);
-}
-
-.ecosystem-section .section-head { margin-bottom: 8px; }
+/* ================= ecosystem: Core at the centre of a field =================
+   A real diagram rather than three columns. Two orbits enclose the hub; a
+   solid bus runs from the hub to every launchable application and a dashed
+   bus to every application that cannot be opened. Hovering or focusing a
+   station illuminates its own spine and node. */
 
 .eco-map {
   position: relative;
+  isolation: isolate;
 }
 
-.eco-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) minmax(0, 1fr);
-  grid-template-areas: "later hub live";
-  align-items: center;
-  gap: 12px 40px;
-  width: min(1100px, 100%);
-  margin: 0 auto;
-}
-
-.eco-field-lines {
+/* Field geometry sits behind the field and never intercepts pointer events.
+   preserveAspectRatio="none" stretches the orbits with the field, which is
+   correct for an instrument frame and keeps the whole diagram resolution
+   independent. */
+.eco-geometry {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 0;
 }
 
-.eco-field-lines .eco-ellipse {
+.eco-orbit {
   fill: none;
-  stroke: rgba(145, 70, 255, 0.16);
   stroke-width: 1;
-  stroke-dasharray: 2 8;
+  vector-effect: non-scaling-stroke;
+  transition: stroke var(--t-standard) ease;
 }
 
-.eco-field-lines .eco-ellipse.is-inner {
-  stroke: rgba(170, 150, 210, 0.12);
-  stroke-dasharray: none;
+.eco-orbit.is-outer {
+  stroke: var(--peri-faint);
+  stroke-dasharray: 3 9;
 }
 
-.eco-field-lines line {
-  stroke: rgba(145, 70, 255, 0.42);
+.eco-orbit.is-inner {
+  stroke: rgba(160, 151, 200, 0.1);
+}
+
+.eco-bus {
+  fill: none;
   stroke-width: 1;
-}
-
-.eco-field-lines line.is-closed {
-  stroke: rgba(155, 150, 165, 0.45);
+  vector-effect: non-scaling-stroke;
+  stroke: rgba(155, 150, 165, 0.4);
   stroke-dasharray: 3 7;
 }
 
-.eco-hub {
+.eco-bus.is-live {
+  stroke: url("#ecoSpineLive");
+  stroke-dasharray: none;
+  transition: stroke var(--t-standard) ease;
+}
+
+.eco-field {
   position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(196px, 232px) minmax(0, 1fr);
+  grid-template-areas: "later hub live";
+  align-items: start;
+  gap: 14px 30px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* The hub stays centred on the field; the arms hang from the bus. */
+.eco-hub { align-self: center; }
+
+/* ---- hub ------------------------------------------------------------- */
+
+.eco-hub {
   grid-area: hub;
+  position: relative;
   z-index: 2;
-  width: auto;
-  padding: 16px 14px 8px;
+  padding: 22px 18px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  border: 1px solid rgba(145, 70, 255, 0.42);
+  border: 1px solid var(--purple-line);
   background:
-    radial-gradient(ellipse 80% 70% at 50% 0%, rgba(145, 70, 255, 0.1), transparent 70%),
-    rgba(8, 7, 12, 0.82);
-  box-shadow: inset 0 0 48px rgba(145, 70, 255, 0.07);
+    radial-gradient(ellipse 80% 70% at 50% 0%, rgba(145, 70, 255, 0.12), transparent 70%),
+    rgba(8, 7, 12, 0.92);
+  box-shadow: inset 0 0 48px rgba(145, 70, 255, 0.08);
   transition: border-color var(--t-standard) ease, box-shadow var(--t-standard) ease;
 }
 
-.eco-hub::before,
-.eco-hub::after {
-  content: "";
+/* The rail carries the bus into the hub. It is two stubs that stop at the
+   hub edge — the line never crosses the hub's own content. */
+.eco-hub-rail {
   position: absolute;
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--highlight);
-  opacity: 0.7;
+  top: 50%;
+  left: -22px;
+  width: 22px;
+  height: 1px;
+  background: var(--purple-line);
   pointer-events: none;
 }
 
-.eco-hub::before {
-  top: -1px;
-  left: -1px;
-  border-right: 0;
-  border-bottom: 0;
+.eco-hub-rail::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  border: 1px solid var(--crystal);
+  background: var(--purple);
+}
+
+/* The mirrored stub for the other arm. */
+.eco-hub::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -22px;
+  width: 22px;
+  height: 1px;
+  background: var(--purple-line);
+  pointer-events: none;
 }
 
 .eco-hub::after {
-  right: -1px;
-  bottom: -1px;
-  border-left: 0;
-  border-top: 0;
+  /* Diamond terminator on the far end of the mirrored stub. */
+  background-image:
+    radial-gradient(circle at 0 50%, transparent 3.5px, var(--purple-line) 3.5px);
+  box-shadow: none;
 }
 
-.eco-map:has(a.eco-station-body:hover, a.eco-station-body:focus-visible) .eco-hub {
-  border-color: rgba(179, 107, 255, 0.75);
-  box-shadow: inset 0 0 56px rgba(145, 70, 255, 0.12);
+/* Both terminators use the same diamond node as every other connection. */
+.eco-hub::before {
+  content: "";
+  position: absolute;
+  top: calc(50% - 3.5px);
+  right: -25.5px;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  border: 1px solid var(--crystal);
+  background: var(--purple);
+  pointer-events: none;
+  z-index: 1;
 }
 
-.eco-hub-glyph {
-  font-size: 28px;
-  line-height: 1;
-  color: var(--highlight);
-  text-shadow: 0 0 18px rgba(145, 70, 255, 0.55);
-  margin-bottom: 10px;
+/* Narrow: the bus turns vertical, so the stubs are hidden and the arms carry
+   the trunk instead. */
+@media (max-width: 1080px) {
+  .eco-hub-rail,
+  .eco-hub::before,
+  .eco-hub::after { display: none; }
+}
+
+.eco-hub-icon {
+  display: block;
+  color: var(--crystal);
+  filter: drop-shadow(0 0 12px var(--crystal-glow));
+  margin-bottom: 14px;
+  transition: filter var(--t-standard) ease;
 }
 
 .eco-hub-meta {
@@ -990,18 +1295,20 @@ section {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 8px 12px;
+  gap: 8px 10px;
   font-family: var(--font-display);
   font-size: 11px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
+  color: var(--text);
 }
 
 .eco-hub h3 {
   font-size: 15px;
   font-weight: 400;
-  line-height: 1.3;
+  line-height: 1.35;
   margin-top: 10px;
+  color: var(--muted);
 }
 
 .eco-hub-facts {
@@ -1009,16 +1316,17 @@ section {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: 12px;
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  margin: 14px 0 0;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--periwinkle-deep);
 }
 
 .eco-hub-facts li + li::before {
   content: "/";
-  margin: 0 10px;
+  margin: 0 9px;
   color: var(--border);
 }
 
@@ -1027,11 +1335,12 @@ section {
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  margin-top: 4px;
+  margin-top: 6px;
   font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  color: var(--highlight);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--crystal);
   transition: color var(--t-hover) ease;
 }
 
@@ -1039,74 +1348,106 @@ section {
 .eco-hub-link:hover { color: var(--text); }
 .eco-hub-link:hover span { transform: translateX(3px); }
 
-.eco-state {
-  display: inline-block;
-  font-family: var(--font-display);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.eco-state[data-state="open"],
-.eco-state[data-state="restricted"] {
-  color: var(--success);
-  border-color: rgba(60, 180, 120, 0.4);
-}
+/* ---- arms ------------------------------------------------------------ */
 
 .eco-arm {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
+  position: relative;
   min-width: 0;
 }
 
-.eco-arm.is-later {
-  grid-area: later;
-  box-shadow: inset -1px 0 0 rgba(155, 150, 165, 0.45);
-}
-.eco-arm.is-live {
-  grid-area: live;
-  box-shadow: inset 1px 0 0 var(--purple-line);
+.eco-arm.is-later { grid-area: later; }
+.eco-arm.is-live { grid-area: live; }
+
+.eco-arm-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--periwinkle-deep);
 }
 
-.eco-arm.is-later .eco-station-body { padding-right: 28px; }
-.eco-arm.is-live .eco-station-body { padding-left: 28px; }
+.eco-arm.is-live .eco-arm-label { color: var(--periwinkle); }
+
+.eco-arm-node {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  border: 1px solid var(--periwinkle-deep);
+  background: var(--void);
+}
+
+.eco-arm.is-live .eco-arm-node {
+  background: var(--crystal);
+  border-color: var(--crystal);
+  box-shadow: 0 0 8px var(--crystal-glow);
+}
+
+.eco-arm ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
 .eco-station {
   position: relative;
   min-width: 0;
 }
 
-.eco-station-body {
-  position: relative;
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  column-gap: 12px;
-  align-items: start;
-  padding: 14px 8px;
-  text-align: left;
-  transition: background var(--t-hover) ease;
+/* The spine runs from each station towards the hub. The live arm sits right
+   of the hub, so its spine extends left; the planned arm sits left, so its
+   spine extends right and is dashed. */
+.eco-spine {
+  position: absolute;
+  top: 30px;
+  height: 1px;
+  background: var(--purple-line);
+  transition: width var(--t-standard) var(--ease-out), opacity var(--t-standard) ease;
+  width: 22px;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
-.eco-station-body > * { grid-column: 2; }
+.eco-arm.is-later .eco-spine {
+  left: 100%;
+  background: repeating-linear-gradient(
+    to right,
+    rgba(155, 150, 165, 0.55) 0 4px,
+    transparent 4px 10px
+  );
+}
+
+.eco-arm.is-live .eco-spine { right: 100%; }
 
 .eco-node {
-  grid-column: 1;
-  grid-row: 1 / span 6;
+  position: absolute;
+  top: 26px;
   width: 9px;
   height: 9px;
-  margin: 8px 0 0 8px;
   transform: rotate(45deg);
-  border: 1px solid var(--highlight);
+  border: 1px solid var(--crystal);
   background: var(--purple);
-  transition: box-shadow var(--t-hover) ease, background var(--t-hover) ease;
+  transition: box-shadow var(--t-standard) ease, background var(--t-standard) ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* The node sits on the hub-facing edge of its station: the live arm is right
+   of the hub so its node is on the right; the planned arm is left, so its
+   node is on the left. */
+.eco-arm.is-live .eco-node { right: -5px; left: auto; }
+
+.eco-arm.is-later .eco-node {
+  left: -5px;
+  right: auto;
+  background: var(--void);
+  border-color: rgba(155, 150, 165, 0.65);
 }
 
 .eco-station[data-state="closed"] .eco-node {
@@ -1114,292 +1455,326 @@ section {
   border-color: rgba(155, 150, 165, 0.6);
 }
 
-.eco-glyph {
-  grid-column: 1;
-  grid-row: 1 / span 6;
-  font-size: 20px;
-  line-height: 1;
-  color: var(--highlight);
-  margin: 22px 0 0;
-  transition: transform var(--t-standard) var(--ease-out), text-shadow var(--t-standard) ease;
+.eco-station-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  column-gap: 13px;
+  align-items: start;
+  padding: 15px 12px;
+  text-align: left;
+  transition: background var(--t-hover) ease;
 }
 
-.eco-station[data-state="closed"] .eco-glyph { color: #6f6880; }
+.eco-arm.is-later .eco-station-body { padding-left: 26px; padding-right: 18px; }
+.eco-arm.is-live .eco-station-body { padding-left: 18px; padding-right: 26px; }
+
+.eco-station-icon {
+  display: block;
+  color: var(--periwinkle);
+  margin-top: 2px;
+  transition: color var(--t-standard) ease, transform var(--t-standard) var(--ease-out);
+}
+
+.eco-station[data-state="closed"] .eco-station-icon { color: var(--periwinkle-deep); }
+
+.eco-station-copy {
+  display: block;
+  min-width: 0;
+}
+
+/* The status pill is a grid item and must not stretch across the column. */
+.eco-state {
+  justify-self: start;
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--muted);
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.eco-station-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.eco-state[data-state="open"],
+.eco-state[data-state="restricted"] {
+  color: var(--crystal);
+  border-color: var(--crystal-line);
+  background: var(--crystal-wash);
+}
 
 .eco-prefix {
   font-family: var(--font-display);
   font-size: 10px;
   letter-spacing: 0.26em;
-  color: var(--muted);
+  color: var(--periwinkle-deep);
 }
 
 .eco-station h3 {
   font-size: 18px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  margin: 2px 0 8px;
+  margin: 6px 0 0;
   transition: color var(--t-hover) ease;
 }
 
 .eco-station[data-state="closed"] h3 { color: #c9c3d6; }
 
 .eco-station p {
+  display: block;
   font-size: 13.5px;
   line-height: 1.55;
   color: var(--muted);
   margin-top: 8px;
-  max-width: 36ch;
+  max-width: 38ch;
 }
 
 .eco-access {
-  margin-top: auto;
-  padding-top: 16px;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: var(--highlight);
+  display: block;
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--crystal);
 }
 
-.eco-station[data-state="closed"] .eco-access { color: #6f6880; }
+.eco-station[data-state="closed"] .eco-access { color: var(--periwinkle-deep); }
 .eco-access-end { white-space: nowrap; }
 .eco-arrow { display: inline-block; margin-left: 0.4em; transition: transform var(--t-standard) var(--ease-out); }
 
+/* ---- illumination ----------------------------------------------------
+   A point of interest in the field brightens its own spine and node and
+   recedes the rest. This is the section's one piece of state-driven motion. */
+
+.eco-map:has(.eco-station-body:hover),
+.eco-map:has(.eco-station-body:focus-visible) .eco-arm ol {
+  opacity: 0.5;
+  transition: opacity var(--t-standard) ease;
+}
+
+.eco-map .eco-arm ol {
+  opacity: 1;
+  transition: opacity var(--t-standard) ease;
+}
+
+.eco-station:hover,
+.eco-station:focus-within {
+  opacity: 1;
+}
+
+.eco-station:hover .eco-spine,
+.eco-station:focus-within .eco-spine {
+  width: 46px;
+  opacity: 1;
+}
+
+.eco-station:hover .eco-node,
+.eco-station:focus-within .eco-node {
+  background: var(--crystal);
+  box-shadow: 0 0 0 4px rgba(232, 196, 246, 0.14), 0 0 14px var(--crystal-glow);
+}
+
+.eco-station:hover .eco-station-icon,
+.eco-station:focus-within .eco-station-icon {
+  color: var(--crystal);
+  transform: translateY(-2px);
+}
+
+.eco-station:hover h3,
+.eco-station:focus-within h3 { color: var(--crystal); }
+
+.eco-station:hover .eco-arrow,
+.eco-station:focus-within .eco-arrow { transform: translateX(3px); }
+
+.eco-map:has(.eco-station:hover) .eco-hub,
+.eco-map:has(.eco-station:focus-within) .eco-hub {
+  border-color: var(--crystal-line);
+  box-shadow: inset 0 0 56px rgba(145, 70, 255, 0.14);
+}
+
+.eco-map:has(.eco-station:hover) .eco-hub-icon,
+.eco-map:has(.eco-station:focus-within) .eco-hub-icon {
+  filter: drop-shadow(0 0 18px var(--crystal-glow));
+}
+
 a.eco-station-body:hover,
-a.eco-station-body:focus-visible { background: rgba(25, 23, 33, 0.6); }
-a.eco-station-body:hover::before,
-a.eco-station-body:focus-visible::before { background: var(--highlight); }
-a.eco-station-body:hover .eco-node,
-a.eco-station-body:focus-visible .eco-node { background: var(--highlight); box-shadow: 0 0 0 4px rgba(145, 70, 255, 0.14); }
-a.eco-station-body:hover .eco-glyph,
-a.eco-station-body:focus-visible .eco-glyph { transform: translateY(-2px); text-shadow: 0 0 16px rgba(145, 70, 255, 0.6); }
-a.eco-station-body:hover h3,
-a.eco-station-body:focus-visible h3 { color: var(--highlight); }
-a.eco-station-body:hover .eco-arrow,
-a.eco-station-body:focus-visible .eco-arrow { transform: translateX(3px); }
+a.eco-station-body:focus-visible { background: rgba(25, 23, 33, 0.62); }
+
+/* ---- legend ---------------------------------------------------------- */
 
 .eco-legend {
   display: flex;
-  justify-content: center;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
   gap: 8px 28px;
-  margin-top: 40px;
+  margin-top: 30px;
   font-family: var(--font-display);
   font-size: 10px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--periwinkle-deep);
 }
 
 .eco-legend span { display: inline-flex; align-items: center; gap: 10px; }
-.eco-legend i { display: block; width: 28px; height: 1px; }
-.eco-legend .solid { background: var(--purple-line); }
-.eco-legend .dashed { background: repeating-linear-gradient(to right, rgba(155, 150, 165, 0.6) 0 4px, transparent 4px 10px); }
+.eco-legend i { display: block; width: 26px; height: 1px; }
+.eco-legend .solid { background: var(--crystal-line); }
+.eco-legend .dashed { background: repeating-linear-gradient(to right, rgba(155, 150, 165, 0.65) 0 4px, transparent 4px 10px); }
 
-/* Narrow: Core first, then the live arm, then what is still planned. */
-@media (max-width: 980px) {
+/* The legend note restated the section's own note verbatim ("...authenticates
+   through Core") on desktop too, so it is retired everywhere rather than only
+   on mobile. The line-style key beside it still carries the meaning. */
+.eco-legend-note { display: none; }
+
+/* ---- narrow: the field collapses to a spine --------------------------
+   The horizontal bus turns vertical. The trunk sits 4px from the arm edge;
+   each station's node lands exactly on it and a short stub bridges from the
+   trunk to the station content. */
+
+@media (max-width: 1080px) {
+  .eco-geometry { display: none; }
+
   .eco-field {
     grid-template-columns: 1fr;
     grid-template-areas: "hub" "live" "later";
-    gap: 8px;
+    gap: 26px;
     width: 100%;
   }
-  .eco-field-lines { display: none; }
+
   .eco-hub {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
     text-align: left;
-    padding: 24px 22px 16px;
+    padding: 22px 22px 14px;
     gap: 0 18px;
   }
-  .eco-hub-glyph { grid-row: span 3; margin: 2px 0 0; }
-  .eco-hub-meta, .eco-hub-facts { justify-content: flex-start; }
+
+  .eco-hub-icon { grid-row: span 3; margin: 0; }
+  .eco-hub-meta { justify-content: flex-start; }
+  .eco-hub h3 { margin-top: 8px; }
+  .eco-hub-facts { justify-content: flex-start; margin-top: 12px; }
   .eco-hub-link { grid-column: 2; justify-self: start; }
-  .eco-arm.is-later, .eco-arm.is-live { margin-top: 8px; }
-  .eco-station { padding: 0 0 0 28px; }
-  .eco-station::before {
+
+  /* The hub stubs belong to the horizontal bus; the arms carry the trunk. */
+  .eco-hub-rail,
+  .eco-hub::before,
+  .eco-hub::after { display: none; }
+
+  .eco-arm.is-later,
+  .eco-arm.is-live { position: relative; padding-left: 34px; }
+
+  .eco-arm.is-later::before,
+  .eco-arm.is-live::before {
     content: "";
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 28px;
+    left: 4px;
     width: 1px;
-    background: var(--purple-line);
   }
-  .eco-station:last-child::before { bottom: auto; height: 36px; }
-  .eco-station[data-state="closed"]::before {
-    background: repeating-linear-gradient(to bottom, rgba(155, 150, 165, 0.5) 0 3px, transparent 3px 7px);
+
+  .eco-arm.is-live::before { background: var(--purple-line); }
+
+  .eco-arm.is-later::before {
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(155, 150, 165, 0.55) 0 4px,
+      transparent 4px 10px
+    );
   }
+
+  .eco-arm-label { padding-left: 4px; }
+
+  /* The trunk node lands on the spine: 34px of arm padding, node at -30px. */
+  .eco-node,
+  .eco-arm.is-live .eco-node,
+  .eco-arm.is-later .eco-node {
+    left: -30px;
+    right: auto;
+    top: 28px;
+    margin-left: 0;
+  }
+
+  /* The stub bridges from the trunk to the station content. */
+  .eco-spine,
+  .eco-arm.is-live .eco-spine,
+  .eco-arm.is-later .eco-spine {
+    left: -30px;
+    right: auto;
+    top: 32px;
+    width: 30px;
+  }
+
+  .eco-arm.is-later .eco-spine {
+    background: repeating-linear-gradient(
+      to right,
+      rgba(155, 150, 165, 0.55) 0 4px,
+      transparent 4px 10px
+    );
+  }
+
+  /* On the trunk the icon leads the head row; the trunk node is the only
+     left-column element, and it is absolutely positioned. */
   .eco-station-body {
-    display: grid;
-    grid-template-columns: 32px minmax(0, 1fr);
-    align-items: start;
-    justify-items: start;
-    column-gap: 14px;
-    padding: 18px 4px 18px 0;
-    text-align: left;
+    grid-template-columns: 30px minmax(0, 1fr);
+    column-gap: 12px;
+    padding: 18px 8px 18px 0;
   }
-  .eco-station-body > * { grid-column: 2; }
-  .eco-station-body::before {
-    content: "";
-    position: absolute;
-    top: 30px;
-    left: -28px;
-    width: 22px;
-    height: 1px;
-    background: var(--purple-line);
-  }
-  .eco-station[data-state="closed"] .eco-station-body::before {
-    background: repeating-linear-gradient(to right, rgba(155, 150, 165, 0.5) 0 3px, transparent 3px 7px);
-  }
-  .eco-node { position: absolute; top: 26px; left: -32px; margin: 0; grid-column: auto; }
-  .eco-glyph { grid-column: 1; grid-row: 1 / span 6; margin: 6px 0 0; font-size: 22px; }
-  .eco-station h3 { margin-bottom: 8px; }
-  .eco-station p { margin-top: 10px; max-width: 52ch; -webkit-line-clamp: unset; display: block; }
-  .eco-access { padding-top: 10px; }
-  .eco-legend { justify-content: flex-start; padding-left: 56px; }
+
+  .eco-arm.is-later .eco-station-body,
+  .eco-arm.is-live .eco-station-body { padding: 18px 8px 18px 0; }
+
+  .eco-station-icon { margin-top: 1px; }
+  .eco-station p { max-width: 58ch; }
+  .eco-legend { justify-content: flex-start; }
+  /* Narrow: the vertical trunk is short enough to read without a key, and the
+     arm labels already state availability above it. */
+  .eco-legend { display: none; }
 }
 
-/* ================= structure: three layers ================= */
 
-.layers {
+@media (max-width: 560px) {
+  .eco-hub { grid-template-columns: 1fr; padding: 20px 18px 12px; }
+  .eco-hub-icon { margin-bottom: 12px; }
+  .eco-hub-link { grid-column: 1; }
+  .eco-hub h3 { margin-top: 10px; }
+  .eco-station-body { padding: 14px 6px 14px 0; column-gap: 12px; }
+  .eco-station h3 { font-size: 17px; }
+  .eco-legend { gap: 6px 18px; }
+}
+
+/* ================= capabilities: instrument index ================= */
+
+.capabilities {
   list-style: none;
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
 }
 
-.layers::before,
-.layers::after {
-  content: "";
-  position: absolute;
-  top: 28px;
-  left: 28px;
-  right: 28px;
-  height: 1px;
-}
-
-.layers::before { background: linear-gradient(to right, var(--purple-line), rgba(145, 70, 255, 0.18)); }
-
-.layers::after {
-  background: linear-gradient(to right, transparent, var(--highlight), transparent);
-  background-size: 30% 100%;
-  background-repeat: no-repeat;
-  animation: layer-flow 7s linear infinite;
-  opacity: 0.6;
-}
-
-@keyframes layer-flow {
-  from { background-position: -40% 0; }
-  to { background-position: 140% 0; }
-}
-
-.layer {
-  position: relative;
-  padding-right: 32px;
-}
-
-.layer-mark {
-  position: relative;
-  z-index: 1;
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--void);
-  color: #8d86a0;
-  transition: color var(--t-standard) ease, border-color var(--t-standard) ease;
-}
-
-.layer-icon { width: 34px; height: 34px; }
-
-.layer:hover .layer-mark {
-  color: var(--highlight);
-  border-color: var(--purple-line);
-}
-
-.layer-name {
-  margin-top: 28px;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--highlight);
-  opacity: 0.85;
-}
-
-.layer-title {
-  margin-top: 8px;
-  font-family: var(--font-display);
-  font-size: clamp(24px, 3vw, 32px);
-  letter-spacing: 0.06em;
-}
-
-.layer p {
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.65;
-}
-
-@media (max-width: 760px) {
-  .layers { grid-template-columns: 1fr; gap: 36px; }
-  .layers::before,
-  .layers::after { top: 28px; bottom: 28px; left: 28px; right: auto; width: 1px; height: auto; }
-  .layers::before { background: linear-gradient(to bottom, var(--purple-line), rgba(145, 70, 255, 0.18)); }
-  .layers::after { display: none; }
-  .layer { padding: 0 0 0 80px; min-height: 56px; }
-  .layer-mark { position: absolute; left: 0; top: 0; }
-  .layer-name { margin-top: 2px; }
-}
-
-/* ================= capabilities index ================= */
-
-.caps-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr);
-  gap: 64px;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .caps-layout {
-    grid-template-columns: 1fr;
-    gap: 36px;
-  }
-}
-
-.caps-intro h2,
-.projects-intro h2 {
-  font-size: clamp(30px, 4vw, 44px);
-  line-height: 1.15;
-  font-weight: 400;
-}
-
-.caps-intro p,
-.projects-intro p {
-  color: var(--muted);
-  font-size: 15px;
-  margin: 18px 0 26px;
-  max-width: 360px;
-  line-height: 1.7;
-}
-
-.capabilities { list-style: none; }
-
+/* `.cap-node` is absolutely positioned, so it is out of flow and does not
+   occupy a grid column. The in-flow tracks are therefore icon / copy / tag. */
 .capability {
   position: relative;
-  border-bottom: 1px solid var(--line);
-  padding: 22px 12px;
   display: grid;
-  grid-template-columns: 44px 1fr auto;
-  gap: 18px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
+  gap: 16px;
+  padding: 20px 14px 20px 22px;
+  border-bottom: 1px solid var(--line);
   transition: background var(--t-hover) ease;
-}
-
-.capability:first-child {
-  border-top: 1px solid var(--line);
 }
 
 .capability::before {
@@ -1409,158 +1784,173 @@ a.eco-station-body:focus-visible .eco-arrow { transform: translateX(3px); }
   top: -1px;
   bottom: -1px;
   width: 1px;
-  background: var(--highlight);
+  background: var(--crystal);
   transform: scaleY(0);
   transition: transform var(--t-standard) var(--ease-out);
 }
 
 .capability:hover {
-  background: rgba(25, 23, 33, 0.7);
+  background: rgba(25, 23, 33, 0.66);
 }
 
 .capability:hover::before { transform: scaleY(1); }
-.capability:hover .cap-name { color: var(--text); }
-.capability:hover .cap-to { color: var(--highlight); }
-.capability:hover .cap-icon { color: var(--highlight); }
+
+/* Every capability sits on the same trunk as the ecosystem field. */
+.cap-node {
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  margin-top: -4px;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border: 1px solid var(--periwinkle-deep);
+  background: var(--void);
+  transition: background var(--t-standard) ease, box-shadow var(--t-standard) ease, border-color var(--t-standard) ease;
+}
+
+.capability:hover .cap-node {
+  background: var(--crystal);
+  border-color: var(--crystal);
+  box-shadow: 0 0 10px var(--crystal-glow);
+}
 
 .cap-icon {
-  width: 34px;
-  height: 34px;
-  color: #8d86a0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color var(--t-hover) ease;
+  color: var(--periwinkle);
+  transition: color var(--t-standard) ease, transform var(--t-standard) var(--ease-out);
 }
 
-.cap-icon svg {
-  width: 22px;
-  height: 22px;
+.capability:hover .cap-icon {
+  color: var(--crystal);
+  transform: translateY(-2px);
+}
+
+.cap-copy {
+  display: block;
+  min-width: 0;
 }
 
 .cap-name {
+  display: block;
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: 0.02em;
-  color: #d9d4e4;
+  color: var(--text);
   transition: color var(--t-hover) ease;
 }
 
 .cap-desc {
+  display: block;
   color: var(--muted);
   font-size: 13.5px;
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
 .cap-to {
   font-family: var(--font-display);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--periwinkle-deep);
   white-space: nowrap;
   transition: color var(--t-hover) ease;
 }
 
+.capability:hover .cap-to { color: var(--crystal); }
+
 @media (max-width: 560px) {
   .capability {
-    grid-template-columns: 36px 1fr;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px 12px;
+    padding: 16px 10px 16px 20px;
+    align-items: start;
   }
-  .cap-to {
-    grid-column: 2;
-  }
+  .cap-icon { grid-row: span 2; padding-top: 2px; }
+  .cap-to { grid-column: 2; }
 }
 
-/* ================= forge ================= */
+/* ================= forge: wide data band ================= */
 
-/* A deeper band of the same space: graded edges instead of hard rules. */
 .forge-section {
-  background: linear-gradient(to bottom, transparent, rgba(17, 16, 25, 0.6) 16%, rgba(17, 16, 25, 0.6) 84%, transparent);
+  background: linear-gradient(to bottom, transparent, rgba(17, 16, 25, 0.62) 18%, rgba(17, 16, 25, 0.62) 82%, transparent);
   overflow: hidden;
 }
 
-.forge-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 64px;
-  align-items: center;
-}
-
-@media (max-width: 860px) {
-  .forge-layout {
-    grid-template-columns: 1fr;
-    gap: 48px;
-  }
-}
-
-.forge-copy h2 {
-  font-size: clamp(34px, 4.5vw, 52px);
-  font-weight: 400;
-}
-
-.forge-copy p {
-  color: var(--muted);
-  font-size: 15px;
-  margin: 20px 0 28px;
-  max-width: 420px;
-  line-height: 1.7;
-}
-
+/* The FORGE inventory is tabular, so it reads as a band rather than a rail. */
 .forge-list {
   list-style: none;
-  margin-bottom: 28px;
-  border-top: 1px solid rgba(48, 42, 61, 0.7);
-}
-
-.forge-list li {
   display: grid;
-  grid-template-columns: 32px 150px 1fr;
-  gap: 12px;
-  align-items: baseline;
-  padding: 13px 0;
-  border-bottom: 1px solid rgba(48, 42, 61, 0.7);
-  font-size: 14px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 30px;
+  padding: 0;
+  background: var(--line-faint);
+  border: 1px solid var(--line);
 }
 
-.forge-list .fl-icon {
-  color: #8d86a0;
-  font-size: 15px;
+.forge-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 18px 22px;
+  background: rgba(8, 7, 12, 0.86);
+  transition: background var(--t-hover) ease;
 }
 
-.forge-list .fl-name {
+.forge-item:hover { background: var(--surface2); }
+
+.forge-item-icon {
+  display: block;
+  color: var(--periwinkle);
+  transition: color var(--t-hover) ease;
+}
+
+.forge-item:hover .forge-item-icon { color: var(--crystal); }
+
+.fl-name {
+  display: block;
   font-family: var(--font-display);
   font-size: 13px;
-  letter-spacing: 0.1em;
-  color: #d9d4e4;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
-.forge-list .fl-desc {
+.fl-desc {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--muted);
-  font-size: 13.5px;
-}
-
-@media (max-width: 560px) {
-  .forge-list li {
-    grid-template-columns: 28px 1fr;
-  }
-  .forge-list .fl-desc {
-    grid-column: 2;
-  }
 }
 
 .forge-diagram {
   position: relative;
-  padding: 26px 26px 20px;
+  padding: 22px;
   border: 1px solid var(--line);
-  border-radius: 4px;
-  background: rgba(8, 7, 12, 0.72);
+  background: rgba(8, 7, 12, 0.8);
 }
 
 .forge-diagram svg {
   width: 100%;
   height: auto;
+  max-width: 620px;
+  margin: 0 auto;
+  display: block;
 }
 
-.flow-line {
+.diagram-link {
+  fill: none;
+  stroke: var(--purple-line);
+  stroke-width: 1;
+}
+
+.diagram-flow {
+  fill: none;
+  stroke: var(--crystal-line);
+  stroke-width: 1;
+  stroke-dasharray: 5 5;
   animation: dash-flow 3.5s linear infinite;
 }
 
@@ -1568,128 +1958,180 @@ a.eco-station-body:focus-visible .eco-arrow { transform: translateX(3px); }
   to { stroke-dashoffset: -20; }
 }
 
-/* ================= projects ================= */
+.diagram-orbit {
+  fill: none;
+  stroke: var(--peri-faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 6;
+}
 
-.projects-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  gap: 64px;
-  align-items: center;
+.diagram-node rect,
+.diagram-hub rect {
+  fill: rgba(25, 23, 33, 0.95);
+  stroke: var(--border);
+}
+
+.diagram-hub rect { stroke: var(--purple-line); }
+
+.diagram-icon { color: var(--periwinkle); }
+.diagram-icon.is-hub { color: var(--crystal); }
+
+.diagram-label {
+  fill: var(--periwinkle);
+  font-family: var(--font-display), sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.diagram-label.is-hub { fill: var(--crystal); }
+
+.diagram-joint {
+  fill: var(--crystal);
+  opacity: 0.8;
 }
 
 @media (max-width: 900px) {
-  .projects-layout {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
+  .forge-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .forge-item:last-child { grid-column: 1 / -1; }
 }
 
+@media (max-width: 480px) {
+  .forge-list { grid-template-columns: 1fr; }
+  .forge-item:last-child { grid-column: auto; }
+  .forge-diagram { padding: 14px; }
+}
+
+/* ================= projects: wide data band ================= */
+
 .project-feature {
-  padding: 20px 20px 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 34px;
+  align-items: center;
+  padding: 24px;
   border: 1px solid var(--line);
-  border-radius: 4px;
   background: var(--panel);
   transition: border-color var(--t-standard) ease;
 }
 
-.project-feature:hover { border-color: rgba(145, 70, 255, 0.4); }
+.project-feature:hover { border-color: var(--purple-line); }
 
-.project-window {
-  border: 1px solid rgba(48, 42, 61, 0.9);
-  background: rgba(8, 7, 12, 0.7);
-  border-radius: 3px;
+/* The feature readout replaces the previous macOS-window mock. It is drawn
+   from the same node/trunk grammar as the ecosystem rather than imitating a
+   desktop application. */
+.project-readout {
+  position: relative;
+  padding: 18px 18px 20px;
+  border: 1px solid var(--line);
+  background: rgba(8, 7, 12, 0.78);
   overflow: hidden;
-  padding-bottom: 6px;
 }
 
-.project-window-bar {
+.project-readout-bar {
+  position: absolute;
+  top: 0;
+  left: 18px;
+  width: 34px;
+  height: 1px;
+  background: var(--crystal-line);
+}
+
+.project-readout-list {
+  list-style: none;
   display: flex;
-  gap: 6px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.project-window-bar i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #3a3348;
-  display: block;
-}
-
-.project-window-body {
-  padding: 18px;
-  display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
 }
 
-.tool-chip {
+.project-readout-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-display);
   font-size: 11px;
-  letter-spacing: 0.08em;
-  border: 1px solid rgba(145, 70, 255, 0.35);
-  color: #c9bce0;
-  background: rgba(145, 70, 255, 0.07);
-  padding: 7px 12px;
-  border-radius: 2px;
+  letter-spacing: 0.1em;
+  color: var(--text);
 }
 
-.tool-chip.dim {
-  border-color: rgba(48, 42, 61, 0.9);
-  color: var(--muted);
-  background: transparent;
+.project-readout-node {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--crystal);
 }
 
-.tool-line {
-  height: 34px;
-  border: 1px solid rgba(48, 42, 61, 0.9);
-  border-radius: 2px;
-  margin: 0 18px 12px;
-  background: rgba(25, 23, 33, 0.5);
+.project-readout-node.is-dim {
+  background: var(--void);
+  border: 1px solid var(--border);
 }
 
-.project-meta-row {
-  padding: 24px 4px 0;
+.project-readout-line {
+  display: block;
+  height: 1px;
+  margin-bottom: 10px;
+  background: linear-gradient(to right, var(--peri-line), transparent 62%);
 }
+
+.project-readout-line.is-short { width: 62%; }
 
 .project-meta-row h3 {
-  font-size: clamp(22px, 3vw, 30px);
+  font-size: clamp(22px, 2.6vw, 30px);
+  margin: 8px 0 0;
 }
 
 .project-meta-row p {
   color: var(--muted);
   font-size: 14.5px;
-  margin-top: 10px;
-  max-width: 480px;
+  margin-top: 12px;
+  max-width: 44ch;
   line-height: 1.7;
 }
 
+.project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+  margin-top: 20px;
+}
+
 .live-badge {
+  display: inline-block;
   font-family: var(--font-display);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: var(--success);
-  border: 1px solid rgba(60, 180, 120, 0.4);
-  background: rgba(40, 160, 100, 0.08);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--crystal);
+  border: 1px solid var(--crystal-line);
+  background: var(--crystal-wash);
   padding: 4px 10px;
-  border-radius: 2px;
   margin-left: 12px;
   vertical-align: middle;
 }
 
-/* Lifecycle: the same node-and-line vocabulary as the ecosystem bus. */
+@media (max-width: 760px) {
+  /* The readout is aria-hidden decoration that restates the heading beside it
+     ("ToolboxHQ", "Developer tools"). Below this width it would also push the
+     real content below another 120px, so it is not rendered at all. */
+  .project-feature { grid-template-columns: 1fr; gap: 0; padding: 18px; }
+  .project-readout { display: none; }
+}
+
+/* Lifecycle: the same node-and-line grammar as the ecosystem bus. */
 .lifecycle {
   list-style: none;
   position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 80px;
+  margin: 34px 0 0;
+  padding: 0;
 }
 
 .lifecycle li {
   position: relative;
-  padding: 30px 24px 0 0;
+  padding: 26px 24px 0 0;
 }
 
 .lifecycle li::before {
@@ -1711,61 +2153,70 @@ a.eco-station-body:focus-visible .eco-arrow { transform: translateX(3px); }
   width: 9px;
   height: 9px;
   transform: rotate(45deg);
-  border: 1px solid var(--muted);
+  border: 1px solid var(--periwinkle-deep);
   background: var(--void);
 }
 
-.lifecycle [data-tone="live"] .lifecycle-node { background: var(--success); border-color: var(--success); }
-.lifecycle [data-tone="active"] .lifecycle-node { background: var(--purple); border-color: var(--highlight); }
+.lifecycle [data-tone="live"] .lifecycle-node {
+  background: var(--crystal);
+  border-color: var(--crystal);
+  box-shadow: 0 0 8px var(--crystal-glow);
+}
+
+.lifecycle [data-tone="active"] .lifecycle-node {
+  background: var(--purple);
+  border-color: var(--highlight);
+}
 
 .lifecycle h4 {
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  color: #d9d4e4;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text);
   margin-bottom: 8px;
 }
 
 .lifecycle p {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.6;
   margin-bottom: 12px;
-}
-
-@media (max-width: 760px) {
-  .lifecycle { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 36px; margin-top: 56px; }
-}
-
-@media (max-width: 420px) {
-  .lifecycle { grid-template-columns: 1fr; row-gap: 0; }
-  .lifecycle li { padding: 0 0 28px 32px; }
-  .lifecycle li::before { top: 4px; bottom: 0; left: 4px; right: auto; width: 1px; height: auto; }
-  .lifecycle li:last-child::before { display: none; }
 }
 
 .status-pill {
   display: inline-block;
   font-family: var(--font-display);
   font-size: 10px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 2px;
-  border: 1px solid rgba(48, 42, 61, 1);
+  border: 1px solid var(--border);
   color: var(--muted);
   white-space: nowrap;
 }
 
 .status-pill.live {
-  color: var(--success);
-  border-color: rgba(60, 180, 120, 0.4);
+  color: var(--crystal);
+  border-color: var(--crystal-line);
 }
 
 .status-pill.active {
   color: var(--highlight);
-  border-color: rgba(145, 70, 255, 0.4);
+  border-color: var(--purple-line);
 }
 
-/* ================= philosophy ================= */
+@media (max-width: 760px) {
+  .lifecycle { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 30px; }
+}
+
+@media (max-width: 420px) {
+  .lifecycle { grid-template-columns: 1fr; row-gap: 0; }
+  .lifecycle li { padding: 0 0 24px 30px; }
+  .lifecycle li::before { top: 4px; bottom: 0; left: 4px; right: auto; width: 1px; height: auto; }
+  .lifecycle li:last-child::before { display: none; }
+}
+
+/* ================= philosophy: closing centre stage ================= */
 
 .philosophy {
   text-align: center;
@@ -1775,158 +2226,290 @@ a.eco-station-body:focus-visible .eco-arrow { transform: translateX(3px); }
 }
 
 .philosophy h2 {
-  font-size: clamp(28px, 5.2vw, 58px);
+  font-size: clamp(28px, 4.6vw, 52px);
   max-width: 900px;
   margin: 0 auto;
-  line-height: 1.22;
+  line-height: 1.2;
   font-weight: 400;
+  color: var(--crystal);
+  text-shadow: 0 0 60px rgba(232, 196, 246, 0.14);
 }
 
-.philosophy .phil-sub {
-  color: var(--muted);
-  max-width: 560px;
-  margin: 22px auto 0;
+.philosophy-note {
+  margin: 20px auto 0;
+  max-width: 520px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--periwinkle-deep);
 }
 
 .philosophy-terrain {
-  margin-top: 56px;
+  display: block;
+  margin-top: 44px;
   width: 100%;
-  opacity: 0.85;
 }
 
-.seam + .philosophy { padding-top: 24px; }
+.philosophy-terrain path {
+  fill: none;
+  stroke: var(--peri-line);
+  stroke-width: 1;
+}
 
-/* ================= footer ================= */
+.philosophy-terrain path.is-primary {
+  stroke: var(--purple-line);
+}
 
-footer {
-  border-top: 1px solid var(--border);
-  padding: 64px 0 40px;
+.philosophy-terrain circle { fill: var(--peri-line); }
+.philosophy-terrain circle.is-lit { fill: var(--crystal); }
+
+/* ================= footer: the signature ================= */
+
+.site-footer {
   position: relative;
   z-index: 1;
-  background: rgba(8, 7, 12, 0.7);
+  padding: 48px 0 32px;
+  border-top: 1px solid var(--border);
+  background: rgba(8, 7, 12, 0.78);
   backdrop-filter: blur(8px);
 }
 
-.footer-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 32px;
-  margin-bottom: 48px;
-}
-
-.footer-brand {
+.footer-signature {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 26px;
+  padding-bottom: 26px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line-faint);
 }
 
-.footer-brand-text {
+.footer-mark {
+  flex: 0 0 auto;
+  display: block;
+  filter: drop-shadow(0 0 16px rgba(232, 196, 246, 0.14));
+}
+
+.footer-identity {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
-.footer-brand-text .name {
+.footer-wordmark {
   font-family: var(--font-display);
-  font-size: 18px;
-  letter-spacing: 0.28em;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  color: var(--crystal);
 }
 
-.footer-brand-text .tag {
-  font-size: 14px;
+.footer-tagline {
+  font-size: 13.5px;
   color: var(--muted);
 }
 
-.footer-links {
+.footer-axis {
   display: flex;
-  gap: 32px;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.footer-axis-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--periwinkle-deep);
+  white-space: nowrap;
+}
+
+.footer-axis-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 132px;
+  height: 1px;
+  background: linear-gradient(to right, var(--purple-line), var(--peri-line));
+}
+
+.footer-axis-node {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--void);
+  border: 1px solid var(--periwinkle-deep);
+}
+
+.footer-axis-node.is-core {
+  background: var(--crystal);
+  border-color: var(--crystal);
+  box-shadow: 0 0 8px var(--crystal-glow);
+}
+
+.footer-links ul {
+  list-style: none;
+  display: flex;
   flex-wrap: wrap;
-  font-size: 13px;
-  letter-spacing: 0.1em;
+  gap: 8px 26px;
+  margin: 0 0 22px;
+  padding: 0;
 }
 
 .footer-links a {
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  /* Short labels ("AI") would otherwise present a target narrower than the
+     44px minimum. The target is widened, not the type: the extra space sits
+     to the trailing side so the visible wordmark keeps its measured size and
+     the row stays left-aligned. */
+  min-height: 44px;
+  min-width: 44px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--muted);
-  transition: color 0.25s ease;
+  transition: color var(--t-hover) ease;
 }
 
-.footer-links a:hover {
-  color: var(--text);
-}
+.footer-links a svg { color: var(--periwinkle-deep); transition: color var(--t-hover) ease; }
+
+.footer-links a:hover { color: var(--text); }
+.footer-links a:hover svg { color: var(--crystal); }
+.footer-external { color: var(--periwinkle-deep); }
 
 .footer-bottom {
-  font-size: 13px;
-  color: var(--muted);
-  border-top: 1px solid var(--border);
-  padding-top: 24px;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px 16px;
   flex-wrap: wrap;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-faint);
+  font-size: 12.5px;
+  color: var(--periwinkle-deep);
 }
 
-/* ================= page hero (subpages) ================= */
+.footer-bottom-axis {
+  font-family: var(--font-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+@media (max-width: 860px) {
+  .footer-signature { flex-wrap: wrap; gap: 18px 22px; }
+  .footer-axis { margin-left: 0; flex-basis: 100%; }
+}
+
+@media (max-width: 480px) {
+  .footer-axis-track { width: 100%; max-width: 180px; }
+  .footer-wordmark { font-size: 17px; letter-spacing: 0.26em; }
+  .footer-links ul { gap: 6px 18px; }
+}
+
+/* ================= subpages: the same instrument system =================
+   Subpages previously carried only the header and the ambient field, so they
+   read as placeholder routes. They now use the band composition, the frame
+   corners and the crystal wordmark treatment. */
 
 .page-hero {
-  padding: 120px 0 80px;
+  padding: 88px 0 52px;
   position: relative;
   z-index: 1;
 }
 
+/* Frame corners echo the hero, so the environment is continuous. */
+.page-frame {
+  position: absolute;
+  inset: 76px 28px 0;
+  pointer-events: none;
+}
+
+.page-frame span {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--crystal-line);
+  opacity: 0.5;
+}
+
+.page-frame span:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.page-frame span:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+
 .page-hero h1 {
-  font-size: clamp(40px, 7vw, 72px);
-  letter-spacing: 0.08em;
+  font-size: clamp(38px, 6.4vw, 66px);
+  letter-spacing: 0.14em;
+  color: var(--crystal);
+  text-shadow: 0 0 60px rgba(232, 196, 246, 0.16);
+  margin-top: 10px;
 }
 
 .page-hero p {
   color: var(--muted);
   margin-top: 16px;
-  max-width: 560px;
-  font-size: 17px;
+  max-width: 58ch;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.is-subpage { padding-top: 40px; }
+
+.section-action { margin-top: 22px; }
+
+@media (max-width: 760px) {
+  .page-hero { padding: 56px 0 34px; }
+  .page-frame { inset: 60px 14px 0; }
 }
 
 /* ================= project cards ================= */
 
 .project-card {
-  border: 1px solid var(--border);
+  display: block;
+  border: 1px solid var(--line);
   background: rgba(17, 16, 25, 0.7);
-  padding: 32px;
-  transition: border-color 0.3s ease, background 0.3s ease;
-  border-radius: 4px;
+  padding: 26px 28px 24px;
+  transition: border-color var(--t-standard) ease, background var(--t-standard) ease;
 }
 
 .project-card:hover {
-  border-color: rgba(179, 107, 255, 0.4);
+  border-color: var(--crystal-line);
   background: var(--surface2);
 }
 
 .project-card h3 {
-  font-size: clamp(22px, 3vw, 30px);
-  margin-bottom: 12px;
+  font-size: clamp(20px, 2.6vw, 28px);
+  margin: 8px 0 10px;
 }
 
-.project-card p {
+.project-card > p:not(.instrument-label) {
   color: var(--muted);
   font-size: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
+  max-width: 56ch;
 }
 
-.project-status {
+.project-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  font-family: var(--font-display);
   font-size: 11px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--highlight);
+  color: var(--crystal);
 }
 
-.project-meta {
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-  text-transform: uppercase;
-  margin-bottom: 12px;
+.project-card:hover .project-card-action span {
+  transform: translateX(3px);
 }
+
+.project-card-action span { transition: transform var(--t-standard) var(--ease-out); }
 
 /* ================= category rows ================= */
 
@@ -1950,14 +2533,6 @@ footer {
   font-family: var(--font-display);
   font-size: 16px;
   letter-spacing: 0.1em;
-}
-
-.cat-status {
-  font-size: 12px;
-  color: var(--muted);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 6px;
 }
 
 .cat-desc {
@@ -1999,14 +2574,6 @@ footer {
 .ai-status-item .value {
   font-family: var(--font-display);
   font-size: 14px;
-}
-
-.ai-status-offline {
-  color: var(--muted);
-}
-
-.ai-status-online {
-  color: var(--highlight);
 }
 
 .ai-pulse {
@@ -2228,7 +2795,9 @@ footer {
 
 .nav-tools { display: flex; align-items: center; gap: 18px; }
 .nav-account, .launcher-trigger { font-size: 12px; letter-spacing: 0.1em; }
-.nav-account { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); transition: color var(--t-hover) ease; }
+/* min-width keeps the short "Login" label at a full 44px target without
+   altering its type size. */
+.nav-account { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; justify-content: center; color: var(--muted); transition: color var(--t-hover) ease; }
 .nav-account:hover, .nav-account[aria-current] { color: var(--text); }
 
 .launcher-trigger {
@@ -2254,7 +2823,7 @@ footer {
 .launcher-glyph {
   width: 14px;
   height: 14px;
-  color: var(--highlight);
+  color: var(--crystal);
   transition: transform var(--t-standard) var(--ease-out);
 }
 
@@ -2263,21 +2832,28 @@ footer {
 
 .app-launcher { position: relative; }
 
+/* ---- the console panel ------------------------------------------------
+   An instrument surface, not a dropdown: opaque ground, mark, status
+   reading, and the trunk grammar carried over from the ecosystem field. */
+
 .launcher-panel {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
   z-index: 100;
-  width: min(420px, calc(100vw - 32px));
-  max-height: min(700px, calc(100svh - var(--header-h) - 24px));
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(720px, calc(100svh - var(--header-h) - 24px));
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 22px 20px 16px;
-  background:
-    radial-gradient(ellipse 90% 42% at 80% 0%, rgba(145, 70, 255, 0.12), transparent 62%),
-    rgba(8, 7, 12, 0.94);
-  border: 1px solid rgba(145, 70, 255, 0.35);
-  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
+  padding: 0 22px 16px;
+  /* Fully opaque: page content must never read through the panel. */
+  background-color: #08070c;
+  background-image:
+    radial-gradient(ellipse 80% 34% at 78% 0%, rgba(145, 70, 255, 0.14), transparent 62%),
+    linear-gradient(180deg, rgba(17, 16, 25, 0.96), rgba(8, 7, 12, 0.98) 30%);
+  border: 1px solid var(--purple-line);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
 
@@ -2287,9 +2863,10 @@ footer {
   left: -1px;
   width: 12px;
   height: 12px;
-  border-top: 1px solid var(--highlight);
-  border-left: 1px solid var(--highlight);
+  border-top: 1px solid var(--crystal-line);
+  border-left: 1px solid var(--crystal-line);
   pointer-events: none;
+  z-index: 2;
 }
 
 .launcher-corner.is-end {
@@ -2299,19 +2876,20 @@ footer {
   bottom: -1px;
   border-top: 0;
   border-left: 0;
-  border-right: 1px solid var(--highlight);
-  border-bottom: 1px solid var(--highlight);
+  border-right: 1px solid var(--crystal-line);
+  border-bottom: 1px solid var(--crystal-line);
 }
 
 .launcher-panel::before {
   content: "";
   position: absolute;
   top: -1px;
-  left: 20px;
-  right: 20px;
+  left: 22px;
+  right: 22px;
   height: 1px;
-  background: linear-gradient(to right, transparent, var(--highlight), transparent);
-  opacity: 0.7;
+  background: linear-gradient(to right, transparent, var(--crystal), transparent);
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .launcher-panel[hidden] { display: none; }
@@ -2322,24 +2900,78 @@ footer {
   from { opacity: 0; transform: translateY(-6px); }
 }
 
-.launcher-head .section-label { margin-bottom: 6px; font-size: 11px; }
-.launcher-intro { margin-bottom: 18px; color: var(--muted); font-size: 13px; }
+/* Instrument header. */
+.launcher-instrument {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0 16px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
 
-.app-group-block + .app-group-block { margin-top: 14px; }
+.launcher-instrument-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.launcher-reading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--periwinkle-deep);
+}
+
+.launcher-pip {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--crystal);
+  box-shadow: 0 0 8px var(--crystal-glow);
+}
+
+.app-group-block + .app-group-block { margin-top: 16px; }
 
 .app-group {
-  margin: 0 0 4px 26px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 6px 24px;
   font-family: var(--font-display);
   font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--periwinkle-deep);
+}
+
+.app-group-node {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  border: 1px solid var(--periwinkle-deep);
+  background: var(--void);
+}
+
+.app-group-block:not(.is-later) .app-group { color: var(--periwinkle); }
+
+.app-group-block:not(.is-later) .app-group-node {
+  background: var(--crystal);
+  border-color: var(--crystal);
+  box-shadow: 0 0 8px var(--crystal-glow);
 }
 
 .app-directory ul {
   list-style: none;
   position: relative;
+  margin: 0;
+  padding: 0;
 }
 
 /* Trunk: Core's connection running through each group. */
@@ -2355,7 +2987,7 @@ footer {
 }
 
 .app-group-block.is-later ul::before {
-  background: repeating-linear-gradient(to bottom, rgba(155, 150, 165, 0.5) 0 3px, transparent 3px 7px);
+  background: repeating-linear-gradient(to bottom, rgba(155, 150, 165, 0.55) 0 4px, transparent 4px 10px);
 }
 
 .launcher-panel:not([hidden]) .app-directory ul::before { animation: trunk-draw 420ms var(--ease-out) both; }
@@ -2371,12 +3003,11 @@ footer {
 .app-entry {
   position: relative;
   display: grid;
-  grid-template-columns: 16px 24px minmax(0, 1fr);
+  grid-template-columns: 14px 22px minmax(0, 1fr);
   align-items: start;
-  column-gap: 10px;
+  column-gap: 11px;
   min-height: 44px;
-  padding: 11px 10px 11px 0;
-  border-radius: 3px;
+  padding: 12px 10px 12px 0;
   transition: background var(--t-hover) ease;
 }
 
@@ -2385,7 +3016,7 @@ footer {
   height: 7px;
   margin: 7px 0 0 4px;
   transform: rotate(45deg);
-  border: 1px solid var(--highlight);
+  border: 1px solid var(--crystal);
   background: var(--purple);
   transition: box-shadow var(--t-hover) ease, background var(--t-hover) ease;
 }
@@ -2395,22 +3026,65 @@ footer {
   border-color: rgba(155, 150, 165, 0.6);
 }
 
-.app-glyph { font-size: 17px; line-height: 1.25; color: var(--highlight); }
-[data-state="closed"] > .app-entry .app-glyph { color: #6f6880; }
+.app-glyph {
+  display: block;
+  color: var(--crystal);
+  transition: color var(--t-hover) ease, transform var(--t-hover) var(--ease-out);
+}
+
+[data-state="closed"] > .app-entry .app-glyph { color: var(--periwinkle-deep); }
 .app-copy { min-width: 0; }
-.app-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.app-title { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; }
 .app-name { font-family: var(--font-display); font-size: 15px; color: var(--text); transition: color var(--t-hover) ease; }
 [data-state="closed"] > .app-entry .app-name { color: #c9c3d6; }
-.app-desc { display: block; margin-top: 2px; font-size: 13px; line-height: 1.5; color: var(--muted); }
-.app-access { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
-[data-state="restricted"] > .app-entry .app-access { color: #c9bce0; }
+.app-desc { display: block; margin-top: 3px; font-size: 13px; line-height: 1.5; color: var(--muted); }
 
-.app-entry .eco-state { padding: 2px 6px; font-size: 9px; }
+.app-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--periwinkle-deep);
+}
+
+[data-state="restricted"] > .app-entry .app-access { color: var(--crystal); }
+
+.app-entry .eco-state { padding: 2px 7px; font-size: 9px; }
 
 a.app-entry:hover, a.app-entry:focus-visible { background: var(--surface2); }
-a.app-entry:hover .app-name, a.app-entry:focus-visible .app-name { color: var(--highlight); }
-a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: var(--highlight); box-shadow: 0 0 0 3px rgba(145, 70, 255, 0.16); }
+a.app-entry:hover .app-name, a.app-entry:focus-visible .app-name { color: var(--crystal); }
+a.app-entry:hover .app-glyph, a.app-entry:focus-visible .app-glyph { color: var(--crystal); }
+a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node {
+  background: var(--crystal);
+  box-shadow: 0 0 0 3px rgba(232, 196, 246, 0.14);
+}
 .launcher-panel a:focus-visible { outline-offset: -2px; }
+
+/* Signature foot: the panel states the axis it represents. */
+.launcher-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--periwinkle-deep);
+}
+
+.launcher-foot-axis {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(to right, var(--purple-line), var(--peri-line));
+}
 
 .launcher-site { display: none; }
 
@@ -2426,17 +3100,32 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
     right: 0;
     width: auto;
     max-height: calc(100svh - var(--header-h));
-    padding: 22px 24px calc(20px + env(safe-area-inset-bottom));
+    padding: 0 24px calc(18px + env(safe-area-inset-bottom));
     border-width: 1px 0;
-    border-radius: 0;
+    background-image:
+      radial-gradient(ellipse 90% 24% at 78% 0%, rgba(145, 70, 255, 0.16), transparent 62%),
+      linear-gradient(180deg, #111019, #08070c 30%);
   }
   .launcher-panel::before { left: 24px; right: 24px; }
+  .launcher-instrument { padding-top: 16px; }
+  /* A labelled group, not four floating words. */
   .launcher-site {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin: -10px 0 18px;
-    padding-bottom: 8px;
+    gap: 2px 12px;
+    margin: 0 0 16px;
+    padding: 12px 0 14px;
     border-bottom: 1px solid var(--line);
+  }
+  .launcher-site::before {
+    content: "Site";
+    grid-column: 1 / -1;
+    font-family: var(--font-display);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--periwinkle-deep);
+    margin-bottom: 4px;
   }
   .launcher-site a {
     display: flex;
@@ -2444,30 +3133,38 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
     min-height: 48px;
     font-family: var(--font-display);
     font-size: 12px;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
     color: var(--muted);
   }
-  .launcher-site a[aria-current] { color: var(--text); }
-  .launcher-site a:hover { color: var(--highlight); }
+  .launcher-site a[aria-current] { color: var(--crystal); }
+  .launcher-site a:hover { color: var(--crystal); }
 }
 
 @media (max-width: 400px) {
-  .brand-mark span { font-size: 14px; letter-spacing: 0.2em; }
+  .brand-mark span { font-size: 14px; letter-spacing: 0.24em; }
+  .launcher-panel { padding: 0 18px 16px; }
+  .launcher-instrument { gap: 12px; }
+  .app-entry { grid-template-columns: 14px 20px minmax(0, 1fr); column-gap: 9px; }
 }
 
-/* ================= operations console ================= */
+/* ================= operations console =================
+   The same instrument system as the public site: node-and-trunk grammar,
+   crystal light for confirmed values, periwinkle structure. Density and the
+   honesty model are unchanged — an unknown metric still reads as unknown. */
 
 .ops-main { padding-bottom: 72px; }
 .ops-container { max-width: 1320px; }
 
 .ops-head {
   position: relative;
-  padding: 48px 0 28px;
+  padding: 44px 0 26px;
   border-bottom: 1px solid var(--line-faint);
 }
 
 .ops-head .ops-container {
   position: relative;
+  padding-left: 26px;
 }
 
 .ops-head .ops-container::before {
@@ -2477,19 +3174,23 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
   top: 4px;
   bottom: 4px;
   width: 1px;
-  background: linear-gradient(to bottom, transparent, var(--purple-line), transparent);
+  background: linear-gradient(to bottom, var(--purple-line), var(--peri-line) 46%, transparent);
 }
 
 .ops-head .section-label { margin-bottom: 12px; }
-.ops-head h1 { font-size: clamp(28px, 4vw, 40px); letter-spacing: 0.02em; }
-.ops-head p { margin-top: 10px; color: var(--muted); font-size: 15px; }
+.ops-head h1 {
+  font-size: clamp(26px, 3.4vw, 36px);
+  letter-spacing: 0.04em;
+  color: var(--crystal);
+}
+.ops-head p { margin-top: 10px; color: var(--muted); font-size: 14.5px; max-width: 60ch; }
 
-.ops-section { padding-top: 28px; }
+.ops-section { padding-top: 24px; }
 
 .ops-layout {
   display: grid;
-  grid-template-columns: 196px minmax(0, 1fr);
-  gap: 32px;
+  grid-template-columns: 204px minmax(0, 1fr);
+  gap: 28px;
 }
 
 .ops-nav {
@@ -2504,57 +3205,108 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
 .ops-nav-group { display: flex; flex-direction: column; }
 
 .ops-nav-label {
-  margin: 0 0 6px 14px;
+  position: relative;
+  margin: 0 0 8px 14px;
+  padding-left: 14px;
   font-family: var(--font-display);
   font-size: 10px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: #6f6880;
+  color: var(--periwinkle-deep);
+}
+
+/* The section groups hang off the same trunk as the ecosystem arms. */
+.ops-nav-group {
+  position: relative;
+  padding-left: 16px;
+}
+
+.ops-nav-group::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  bottom: -18px;
+  width: 1px;
+  background: var(--peri-faint);
+}
+
+.ops-nav-group:last-child::before { bottom: auto; height: 14px; }
+
+.ops-nav-label::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+  border: 1px solid var(--periwinkle-deep);
+  background: var(--void);
 }
 
 .ops-nav button {
   position: relative;
   min-height: 40px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border: 0;
-  border-radius: 3px;
+  border-radius: 2px;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 14px;
+  font-size: 13.5px;
   text-align: left;
   cursor: pointer;
   transition: color var(--t-hover) ease, background var(--t-hover) ease;
 }
 
+/* A diamond node marks the section currently being read. */
 .ops-nav button::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 2px;
-  background: var(--highlight);
-  transform: scaleY(0);
-  transition: transform var(--t-hover) ease;
+  left: -16px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  transform: rotate(45deg);
+  border: 1px solid var(--periwinkle-deep);
+  background: var(--void);
+  transition: background var(--t-hover) ease, border-color var(--t-hover) ease, box-shadow var(--t-hover) ease;
 }
 
 .ops-nav button:hover { color: var(--text); background: rgba(25, 23, 33, 0.6); }
-.ops-nav button[aria-current] { color: var(--text); background: var(--surface); }
-.ops-nav button[aria-current]::before { transform: none; }
+.ops-nav button[aria-current] { color: var(--text); background: var(--surface2); }
+
+.ops-nav button[aria-current]::before {
+  background: var(--crystal);
+  border-color: var(--crystal);
+  box-shadow: 0 0 8px var(--crystal-glow);
+}
 
 .ops-content { min-width: 0; }
 
+/* Status band: a live instrument reading, not a row of chips. */
 .ops-bar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px 20px;
-  padding: 10px 12px;
+  padding: 12px 14px 12px 18px;
   border: 1px solid var(--line);
-  border-radius: 4px;
   background: var(--panel);
+}
+
+.ops-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--crystal-line), transparent);
 }
 
 .ops-bar-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
@@ -2584,7 +3336,11 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
 
 .ops-range button:first-child { border-left: 0; }
 .ops-range button:hover { color: var(--text); background: var(--surface2); }
-.ops-range button[aria-pressed="true"] { color: var(--text); background: var(--purple-wash); box-shadow: inset 0 -2px 0 var(--highlight); }
+.ops-range button[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--purple-wash);
+  box-shadow: inset 0 -2px 0 var(--crystal);
+}
 .ops-range button:focus-visible { outline-offset: -2px; }
 
 .ops-button {
@@ -2607,13 +3363,13 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
 .ops-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   padding: 3px 8px;
   border: 1px solid var(--border);
   border-radius: 2px;
   font-family: var(--font-display);
   font-size: 10px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #c9c3d6;
   white-space: nowrap;
@@ -2623,14 +3379,18 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
   content: "";
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  transform: rotate(45deg);
   background: var(--muted);
 }
 
+/* Live and active are the crystal light; confirmed health keeps its own
+   green so it is never confused with configured intent. */
 .ops-chip[data-tone="live"] { color: var(--success); border-color: rgba(60, 180, 120, 0.4); }
 .ops-chip[data-tone="live"]::before { background: var(--success); }
-.ops-chip[data-tone="active"] { color: var(--highlight); border-color: rgba(145, 70, 255, 0.4); }
-.ops-chip[data-tone="active"]::before { background: var(--highlight); }
+.ops-chip[data-tone="active"] { color: var(--crystal); border-color: var(--crystal-line); }
+.ops-chip[data-tone="active"]::before { background: var(--crystal); }
+
+/* Unknown stays unknown: dashed, hollow, no colour claim. */
 .ops-chip[data-tone="unavailable"] { color: var(--muted); border-style: dashed; }
 .ops-chip[data-tone="unavailable"]::before { background: transparent; border: 1px solid var(--muted); }
 
@@ -2665,31 +3425,47 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
 .ops-kpis.is-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 .ops-kpis > div {
+  position: relative;
   min-width: 0;
   padding: 18px 20px;
   border-left: 1px solid var(--line);
   background: linear-gradient(to bottom, rgba(145, 70, 255, 0.06), transparent 72%);
 }
 
+/* A confirmed value carries the crystal light; the label stays muted. */
+.ops-kpis > div::before {
+  content: "";
+  position: absolute;
+  left: -4.5px;
+  top: 22px;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border: 1px solid var(--crystal-line);
+  background: var(--void);
+}
+
 .ops-kpis > div:first-child { border-left: 0; }
+.ops-kpis > div:first-child::before { left: -4.5px; }
 
 .ops-kpis dt {
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--periwinkle-deep);
 }
 
 .ops-number {
   margin-top: 10px;
   font-family: var(--font-display);
-  font-size: 36px;
+  font-size: 34px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  color: var(--crystal);
 }
 
 .ops-hint { margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--muted); }
-.ops-inline-number { font-family: var(--font-display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.ops-inline-number { font-family: var(--font-display); font-size: 18px; font-variant-numeric: tabular-nums; color: var(--crystal); }
 
 .ops-grid {
   display: grid;
@@ -2702,11 +3478,11 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
 .ops-span-2 { grid-column: 1 / -1; }
 
 .ops-panel {
+  position: relative;
   min-width: 0;
   margin-bottom: 20px;
-  padding: 22px 24px;
+  padding: 20px 22px;
   border: 1px solid var(--line);
-  border-radius: 4px;
   background: rgba(17, 16, 25, 0.82);
 }
 
@@ -2719,11 +3495,31 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
   margin-bottom: 4px;
 }
 
-.ops-panel h3 { font-size: 16px; font-weight: 500; }
+.ops-panel h3 { font-size: 15px; font-weight: 500; letter-spacing: 0.04em; }
 .ops-panel > h3 { margin-bottom: 12px; }
 .ops-panel p { font-size: 14px; margin: 10px 0; }
-.ops-panel .btn-quiet { padding: 10px 0; font-size: 13px; background: transparent; border: 0; cursor: pointer; }
-.ops-panel.is-unavailable { border-style: dashed; background: rgba(17, 16, 25, 0.5); }
+.ops-panel .btn-quiet { padding: 10px 0; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; background: transparent; border: 0; cursor: pointer; }
+
+/* An unavailable metric is a designed state, not an error: dashed ground,
+   hollow node, no colour claim. */
+.ops-panel.is-unavailable {
+  border-style: dashed;
+  border-color: var(--border);
+  background: rgba(17, 16, 25, 0.42);
+}
+
+.ops-panel.is-unavailable::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  left: -4.5px;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border: 1px dashed var(--periwinkle-deep);
+  background: transparent;
+}
+
 .ops-panel.is-unavailable p { color: var(--muted); }
 .ops-muted { color: var(--muted); font-size: 12px; }
 .ops-empty { color: var(--muted); padding: 20px 0; }
@@ -2739,17 +3535,24 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
 .ops-app-strip li {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 9px;
+  gap: 7px;
+  padding: 4px 10px;
   border: 1px solid var(--border);
   border-radius: 2px;
+  font-family: var(--font-display);
   font-size: 12px;
+  letter-spacing: 0.06em;
   color: var(--muted);
 }
 
-.ops-app-strip li span[aria-hidden] { color: #6f6880; }
-.ops-app-strip li[data-tone="live"] { color: var(--text); border-color: rgba(60, 180, 120, 0.35); }
-.ops-app-strip li[data-tone="live"] span[aria-hidden] { color: var(--success); }
+/* Application identity uses the same node primitive as the ecosystem. */
+.ops-app-strip li span[aria-hidden] {
+  color: var(--periwinkle-deep);
+  display: inline-flex;
+}
+
+.ops-app-strip li[data-tone="live"] { color: var(--text); border-color: var(--crystal-line); }
+.ops-app-strip li[data-tone="live"] span[aria-hidden] { color: var(--crystal); }
 .ops-app-strip li[data-tone="active"] { color: #c9bce0; border-color: rgba(145, 70, 255, 0.35); }
 .ops-app-strip li[data-tone="active"] span[aria-hidden] { color: var(--highlight); }
 
@@ -2774,7 +3577,7 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
   width: 5px;
   height: 5px;
   transform: rotate(45deg);
-  border: 1px solid var(--purple-line);
+  border: 1px solid var(--crystal-line);
 }
 
 .ops-event-name { font-family: var(--font-display); letter-spacing: 0.08em; color: #d9d4e4; }
@@ -2818,18 +3621,20 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
   align-items: flex-end;
 }
 
+/* Recorded activity, not live throughput: the bars are drawn as a field
+   readout, not as a solid block of colour. */
 .ops-chart i {
   display: block;
   width: 100%;
   min-height: 2px;
-  background: var(--highlight);
-  opacity: 0.85;
-  border-radius: 1px 1px 0 0;
+  background: linear-gradient(to bottom, var(--crystal), rgba(160, 151, 200, 0.42));
+  opacity: 0.5;
   transition: opacity var(--t-hover) ease;
 }
 
+/* A zero count renders as an absence, never as a bar. */
 .ops-chart .is-zero i { height: 1px; min-height: 1px; background: var(--border); }
-.ops-chart > div:hover i { opacity: 1; }
+.ops-chart > div:hover i { opacity: 0.95; }
 
 .ops-chart > div:hover::after {
   content: attr(data-count);
@@ -2870,31 +3675,44 @@ a.app-entry:hover .app-node, a.app-entry:focus-visible .app-node { background: v
 .ops-num { font-variant-numeric: tabular-nums; }
 .ops-table td { vertical-align: top; }
 .ops-table td p { margin: 4px 0 8px; color: var(--muted); font-size: 13px; }
-.ops-app-name { font-family: var(--font-display); font-weight: 500; }
-.ops-app-name span { color: var(--highlight); }
+.ops-app-name { font-family: var(--font-display); font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
+.ops-app-name span { color: var(--crystal); display: inline-flex; }
 .ops-dest { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
 .ops-chips { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .ops-runtime { list-style: none; font-size: 12px; color: var(--muted); }
 .ops-runtime li { padding: 1px 0; }
-.ops-runtime li::before { content: "○ "; color: #6f6880; }
-.ops-runtime li.is-known::before { content: "● "; color: var(--muted); }
+
+/* ○ is a known-unknown, ● is a confirmed value. Never the reverse. */
+.ops-runtime li::before { content: "○ "; color: var(--periwinkle-deep); }
+.ops-runtime li.is-known::before { content: "● "; color: var(--crystal); }
 .ops-kv li span { color: var(--muted); }
 .ops-kv strong { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-weight: 500; }
 
 .ops-state {
+  position: relative;
   max-width: 560px;
   margin: 24px auto;
-  padding: 40px 32px;
+  padding: 44px 32px;
   text-align: center;
   border: 1px solid var(--line);
-  border-radius: 4px;
   background: rgba(17, 16, 25, 0.82);
 }
 
-.ops-state h2 { font-size: 24px; margin-top: 14px; }
+.ops-state h2 { font-size: 24px; margin-top: 16px; color: var(--crystal); }
 .ops-state p { color: var(--muted); margin-top: 10px; }
-.ops-state-mark { display: inline-block; font-size: 28px; color: var(--highlight); }
-.ops-state-mark.is-loading { animation: ai-pulse 2.4s ease-in-out infinite; }
+.ops-state-mark {
+  display: inline-flex;
+  color: var(--crystal);
+  filter: drop-shadow(0 0 14px var(--crystal-glow));
+}
+
+/* Only a genuine fetch breathes. A refusal to load does not. */
+.ops-state-mark.is-loading { animation: ops-fetch 1.6s ease-in-out infinite; }
+
+@keyframes ops-fetch {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
 .ops-state-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 20px; margin-top: 24px; }
 .ops-state-actions .ops-button { min-height: 44px; }
 
@@ -3036,9 +3854,9 @@ main { scroll-margin-top: 140px; }
 .footer-brand { min-width: 0; }
 .footer-brand-text { min-width: 0; }
 .btn-quiet { transition: color 0.25s ease; }
-.btn-primary:active, .btn-forge:active { transform: translateY(0); }
-.btn-primary:focus-visible, .btn-forge:focus-visible, .project-card:focus-visible {
-  border-color: var(--highlight);
+.btn-forge:active { transform: translateY(0); }
+.btn-forge:focus-visible, .project-card:focus-visible {
+  border-color: var(--crystal);
 }
 .project-card:focus-visible { background: var(--surface2); }
 .ai-input { min-width: 0; transition: border-color 0.2s ease; }
@@ -3063,6 +3881,29 @@ main { scroll-margin-top: 140px; }
 @media (prefers-reduced-motion: reduce) {
   .js .reveal, .js .reveal.left, .js .reveal.right { opacity: 1; transform: none; }
   *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
-  .seam::before, .hero-axis::after, .layers::after, .hero-structure { animation: none !important; }
-  .hero-axis::after { opacity: 0; }
+
+  /* The ambient field keeps its geometry but stops moving. The hero
+     structure settles into its resolved state rather than spinning or
+     drawing, and the entrance states resolve to their final appearance. */
+  .hero-structure,
+  .seam::before,
+  .hero-axis::after,
+  .diagram-flow,
+  .ops-state-mark.is-loading {
+    animation: none !important;
+  }
+
+  .hero-spoke { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+  .infaix-hero-img,
+  .infaix-hero-orbit,
+  .infaix-hero-glow,
+  .hero-node-halo,
+  .ambient-deep,
+  .ambient-glow-a,
+  .ambient-glow-b,
+  .ambient-grid,
+  .hero-axis::after {
+    animation: none !important;
+  }
+  .hero-axis::after { display: none; }
 }

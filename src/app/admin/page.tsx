@@ -6,12 +6,28 @@ import OperationsConsole from "./operations-console";
 export const metadata: Metadata = { title: "Operations Console", robots: { index: false, follow: false } };
 
 export default function AdminPage() {
-  return <><Nav /><main id="main-content" tabIndex={-1} className="ops-main">
-    <section className="ops-head"><div className="container ops-container">
-      <div className="section-label">INFAIX Core / Operations</div>
-      <h1>Operations Console</h1>
-      <p>Identity, applications and the systems that connect them. Figures appear only when the Worker can supply them.</p>
-    </div></section>
-    <section className="ops-section"><div className="container ops-container"><OperationsConsole /></div></section>
-  </main><Footer /></>;
+  return (
+    <>
+      <Nav />
+      <main id="main-content" tabIndex={-1} className="ops-main">
+        <section className="ops-head">
+          <div className="container ops-container">
+            <p className="instrument-label">INFAIX Core / Operations</p>
+            <h1>Operations Console</h1>
+            <p>
+              Identity, applications and the systems that connect them. Figures
+              appear only when the Worker can supply them. A metric that is not
+              instrumented is reported as unavailable, never as zero.
+            </p>
+          </div>
+        </section>
+        <section className="ops-section">
+          <div className="container ops-container">
+            <OperationsConsole />
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import ScrollReveal from "@/components/ScrollReveal";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import InfaixIcon, { type IconName } from "@/components/icons";
 
 export const metadata: Metadata = {
   title: "FORGE",
@@ -16,14 +17,14 @@ export const metadata: Metadata = {
   },
 };
 
-const infraItems = [
-  { label: "COMPUTE", desc: "Processing and compute resources.", glyph: "▣" },
-  { label: "NETWORK", desc: "Internal and external networking.", glyph: "⌁" },
-  { label: "STORAGE", desc: "Persistent data and file systems.", glyph: "▤" },
-  { label: "AI", desc: "Self-hosted model inference and pipelines.", glyph: "✦" },
-  { label: "CI/CD", desc: "Automated build and deployment.", glyph: "◉" },
-  { label: "FABRICATION", desc: "Hardware prototyping and assembly.", glyph: "⬢" },
-  { label: "BENCH", desc: "Testing and experimentation surface.", glyph: "◈" },
+const infraItems: { label: string; desc: string; icon: IconName }[] = [
+  { label: "Compute", desc: "Processing and compute resources.", icon: "compute" },
+  { label: "Network", desc: "Internal and external networking.", icon: "network" },
+  { label: "Storage", desc: "Persistent data and file systems.", icon: "infrastructure" },
+  { label: "AI", desc: "Self-hosted model inference and pipelines.", icon: "ai" },
+  { label: "CI/CD", desc: "Automated build and deployment.", icon: "pipeline" },
+  { label: "Fabrication", desc: "Hardware prototyping and assembly.", icon: "fabrication" },
+  { label: "Bench", desc: "Testing and experimentation surface.", icon: "bench" },
 ];
 
 export default function ForgePage() {
@@ -33,9 +34,10 @@ export default function ForgePage() {
 
       <main id="main-content" tabIndex={-1}>
         <section className="page-hero">
+          <div className="page-frame" aria-hidden="true"><span /><span /></div>
           <div className="container">
             <ScrollReveal>
-              <div className="section-label">Infrastructure</div>
+              <p className="instrument-label">Infrastructure</p>
               <h1>FORGE</h1>
               <p>
                 The technical creation environment behind INFAIX. Where
@@ -47,16 +49,24 @@ export default function ForgePage() {
         </section>
 
         {/* Infrastructure */}
-        <section className="section-pad" style={{ paddingTop: 20 }}>
-          <div className="container">
+        <section className="section-pad is-subpage">
+          <div className="container band">
             <ScrollReveal>
-              <div className="section-label">Infrastructure</div>
+              <div className="band-head">
+                <span className="instrument-index" aria-hidden="true">01</span>
+                <div>
+                  <p className="instrument-label">Infrastructure</p>
+                  <h2>What FORGE runs on.</h2>
+                </div>
+              </div>
             </ScrollReveal>
             <ScrollReveal>
-              <ul className="forge-list" style={{ borderTop: "1px solid var(--border)" }}>
+              <ul className="forge-list">
                 {infraItems.map((item) => (
-                  <li key={item.label}>
-                    <span className="fl-icon" aria-hidden="true">{item.glyph}</span>
+                  <li key={item.label} className="forge-item">
+                    <span className="forge-item-icon">
+                      <InfaixIcon name={item.icon} size={22} />
+                    </span>
                     <span className="fl-name">{item.label}</span>
                     <span className="fl-desc">{item.desc}</span>
                   </li>
@@ -67,63 +77,79 @@ export default function ForgePage() {
         </section>
 
         {/* Projects */}
-        <section className="section-pad" style={{ paddingTop: 20 }}>
-          <div className="container">
+        <section className="section-pad is-subpage">
+          <div className="container band">
             <ScrollReveal>
-              <div className="section-label">Projects</div>
+              <div className="band-head">
+                <span className="instrument-index" aria-hidden="true">02</span>
+                <div>
+                  <p className="instrument-label">Projects</p>
+                  <h2>The work that ships.</h2>
+                </div>
+                <p className="band-note">
+                  Released when it is ready. Each project is built, tested and
+                  operated inside this environment.
+                </p>
+              </div>
             </ScrollReveal>
             <ScrollReveal>
-              <Link href="/forge/projects/toolboxhq" className="project-card" style={{ display: "block" }}>
-                <div className="project-status">Live</div>
+              <Link href="/forge/projects/toolboxhq" className="project-card">
+                <p className="instrument-label">Live / Software</p>
                 <h3>ToolboxHQ</h3>
                 <p>Practical developer, file and utility tools built for the web.</p>
-                <div className="project-meta">Software / Tooling / Active</div>
+                <span className="project-card-action">Open project <span aria-hidden="true">→</span></span>
               </Link>
             </ScrollReveal>
             <ScrollReveal>
-              <div style={{ marginTop: 24 }}>
+              <div className="section-action">
                 <Link href="/forge/projects" className="btn-quiet">
-                  View all projects <span>&rarr;</span>
+                  View all projects <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </ScrollReveal>
           </div>
         </section>
 
-        {/* Lab */}
-        <section className="section-pad" style={{ paddingTop: 20 }}>
-          <div className="container">
+        {/* Lab + experiments */}
+        <section className="section-pad is-subpage">
+          <div className="container band">
             <ScrollReveal>
-              <div className="section-label">Lab</div>
-            </ScrollReveal>
-            <ScrollReveal>
-              <div className="cat-row" style={{ borderBottom: "1px solid var(--border)" }}>
-                <div className="cat-title">ACTIVE</div>
-                <div className="cat-desc">
-                  Engineering work currently in progress. Software, hardware
-                  and infrastructure projects under active development.
+              <div className="band-head">
+                <span className="instrument-index" aria-hidden="true">03</span>
+                <div>
+                  <p className="instrument-label">Lab &amp; experiments</p>
+                  <h2>What is being explored.</h2>
                 </div>
               </div>
             </ScrollReveal>
-          </div>
-        </section>
-
-        {/* Experiments */}
-        <section className="section-pad" style={{ paddingTop: 20 }}>
-          <div className="container">
             <ScrollReveal>
-              <div className="section-label">Experiments</div>
+              <ul className="capabilities">
+                <li className="capability">
+                  <span className="cap-node" aria-hidden="true" />
+                  <span className="cap-icon"><InfaixIcon name="forge" size={24} /></span>
+                  <span className="cap-copy">
+                    <span className="cap-name">Active</span>
+                    <span className="cap-desc">
+                      Engineering work currently in progress. Software, hardware
+                      and infrastructure projects under active development.
+                    </span>
+                  </span>
+                  <span className="cap-to">Building</span>
+                </li>
+                <li className="capability">
+                  <span className="cap-node" aria-hidden="true" />
+                  <span className="cap-icon"><InfaixIcon name="ai" size={24} /></span>
+                  <span className="cap-copy">
+                    <span className="cap-name">Exploring</span>
+                    <span className="cap-desc">
+                      Robotics, wearable interaction, AI systems, embedded
+                      hardware and experimental technology.
+                    </span>
+                  </span>
+                  <span className="cap-to">Research</span>
+                </li>
+              </ul>
             </ScrollReveal>
-            <div className="cat-row">
-              <div className="cat-title">EXPLORING</div>
-              <div>
-                <div className="cat-desc">
-                  Robotics, wearable interaction, AI systems, embedded
-                  hardware and experimental technology.
-                </div>
-                <div className="cat-status">Research</div>
-              </div>
-            </div>
           </div>
         </section>
       </main>

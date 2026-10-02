@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/auth-client";
+import InfaixIcon from "@/components/icons";
+import { resolveIcon } from "@/lib/icon-names";
 import { TIME_RANGES, type TimeRange, type OperationsResponse } from "@/lib/operations-contract";
 
 type Section = "Overview" | "Monitoring" | "Applications" | "Users" | "AI" | "Security" | "Logs" | "Deployments" | "Database" | "Settings";
@@ -51,14 +53,14 @@ export default function OperationsConsole() {
   const data = state.data;
   if (!data) return <div className="ops-state" role="status">
     {state.error ? <>
-      <span className="ops-state-mark" aria-hidden="true">◇</span>
+      <span className="ops-state-mark" aria-hidden="true"><InfaixIcon name="core" size={34} /></span>
       <h2>{state.status === 401 ? "Sign in to continue" : state.status === 403 ? "Operations access required" : "Operations unavailable"}</h2>
       <p>{state.error}</p>
       <div className="ops-state-actions">
         <Link className="btn-forge" href="/login?returnTo=%2Fadmin">Sign in <span aria-hidden="true">→</span></Link>
         <button type="button" className="ops-button" onClick={() => refresh()}>Retry</button>
       </div>
-    </> : <><span className="ops-state-mark is-loading" aria-hidden="true">◇</span><p>Loading operations…</p></>}
+    </> : <><span className="ops-state-mark is-loading" aria-hidden="true"><InfaixIcon name="core" size={34} /></span><p>Loading operations…</p></>}
   </div>;
 
   const { snapshot, range: windowLabel } = data;
@@ -127,7 +129,7 @@ export default function OperationsConsole() {
           <div className="ops-panel">
             <div className="ops-panel-head"><h3>Application lifecycle</h3><Chip tone="unavailable">Health unknown</Chip></div>
             <p><span className="ops-inline-number">{live}</span> live · <span className="ops-inline-number">{data.applications.length - live}</span> in development or planned</p>
-            <ul className="ops-app-strip">{data.applications.map((app) => <li key={app.id} data-tone={statusTone(app.status)}><span aria-hidden="true">{app.icon}</span>{app.name.replace(/^INFAIX\s+/, "")}<span className="sr-only">: {app.status}</span></li>)}</ul>
+            <ul className="ops-app-strip">{data.applications.map((app) => <li key={app.id} data-tone={statusTone(app.status)}><span aria-hidden="true"><InfaixIcon name={resolveIcon(app.icon)} size={15} /></span>{app.name.replace(/^INFAIX\s+/, "")}<span className="sr-only">: {app.status}</span></li>)}</ul>
             <p className="ops-muted">Lifecycle is configured intent. Runtime health has not been measured.</p>
             <button type="button" className="btn-quiet" onClick={() => setSection("Applications")}>View applications <span aria-hidden="true">→</span></button>
           </div>
@@ -140,7 +142,7 @@ export default function OperationsConsole() {
 
       {section === "Applications" && <div className="ops-panel"><p className="ops-muted">Canonical registry. No remote health probes are configured. Destinations are configuration, not evidence of availability.</p>
         <div className="admin-table-wrap"><table className="admin-table ops-table"><caption>INFAIX application registry</caption><thead><tr><th scope="col">Application</th><th scope="col">Lifecycle / visibility</th><th scope="col">Access</th><th scope="col">Runtime</th></tr></thead><tbody>{data.applications.map((app) => <tr key={app.id}>
-          <td><strong className="ops-app-name"><span aria-hidden="true">{app.icon}</span> {app.name}</strong><p>{app.description}</p><code className="ops-dest">{app.url ?? "No destination configured"}</code></td>
+          <td><strong className="ops-app-name"><span aria-hidden="true"><InfaixIcon name={resolveIcon(app.icon)} size={16} /></span> {app.name}</strong><p>{app.description}</p><code className="ops-dest">{app.url ?? "No destination configured"}</code></td>
           <td><div className="ops-chips"><Chip tone={statusTone(app.status)}>{app.status}</Chip><Chip>{app.visibility}</Chip><Chip>{app.availability}</Chip></div></td>
           <td>{app.accessRequirement ?? (app.requiresAuth ? "Sign-in required" : "Public")}</td>
           <td><ul className="ops-runtime"><li>Health unknown</li><li>Version unavailable</li><li>Latency unavailable</li><li>Recent errors unavailable</li><li className="is-known">Environment: {app.id === "core" ? data.environment : "unknown"}</li></ul></td>
