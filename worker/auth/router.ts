@@ -29,6 +29,7 @@ import {
 import { mailerFor } from "./mailer";
 import { D1Store } from "./store";
 import type { Env } from "./types";
+import { configuredChatOrigins } from "./chat-origin";
 import { CHAT_HANDOFF_AUDIENCE } from "./chat-handoff-contract";
 import { mintServiceAssertion } from "./service-assertion";
 import { verifySession } from "./sessions";
@@ -66,23 +67,18 @@ export async function handleApi(req: Request, env: Env, url: URL, executionCtx?:
   if (method === "GET" && path === "/api/auth/me") return handleMe(ctx, req);
 
   if (method === "GET" && path === "/api/auth/chat") {
-    const session = await verifySession({ store: ctx.store, env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure }, req.headers.get("cookie"));
-    if (!session) return { status: 401, body: { error: { code: "UNAUTHENTICATED", message: "Sign in with INFAIX first." } } };
-    const configuredOrigin = env.CHAT_ORIGIN;
-    if (!configuredOrigin) return { status: 503, body: { error: { code: "AUTH_UNAVAILABLE", message: "Chat identity handoff is not configured." } } };
-    let chatOrigin: URL;
-    try {
-      chatOrigin = new URL(configuredOrigin);
-    } catch {
-      return { status: 503, body: { error: { code: "AUTH_UNAVAILABLE", message: "Chat identity handoff is not configured." } } };
-    }
-    if (chatOrigin.protocol !== "https:" || chatOrigin.origin !== configuredOrigin || chatOrigin.username || chatOrigin.password || chatOrigin.pathname !== "/" || chatOrigin.search || chatOrigin.hash) {
-      return { status: 503, body: { error: { code: "AUTH_UNAVAILABLE", message: "Chat identity handoff is not configured." } } };
-    }
-    const returnTo = url.searchParams.get("return_to") ?? `${configuredOrigin}/api/auth/core/callback`;
+    const origins = configuredChatOrigins(env);
+    if (!origins) return { status: 503, body: { error: { code: "AUTH_UNAVAILABLE", message: "Chat identity handoff is not configured." } } };
+    const returnTo = url.searchParams.get("return_to") ?? `${origins[0]}/api/auth/core/callback`;
     let parsed: URL;
     try { parsed = new URL(returnTo); } catch { return { status: 400, body: { error: { code: "INVALID_REDIRECT", message: "Invalid return destination." } } }; }
-    if (parsed.origin !== chatOrigin.origin) return { status: 400, body: { error: { code: "INVALID_REDIRECT", message: "Invalid return destination." } } };
+    if (!origins.includes(parsed.origin)) return { status: 400, body: { error: { code: "INVALID_REDIRECT", message: "Invalid return destination." } } };
+    const session = await verifySession({ store: ctx.store, env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure }, req.headers.get("cookie"));
+    if (!session) {
+      const login = new URL("/login", url.origin);
+      login.searchParams.set("returnTo", `${url.pathname}${url.search}`);
+      return { status: 302, body: null, headers: { location: `${login.pathname}${login.search}`, "cache-control": "no-store" } };
+    }
     const key = env.CHAT_IDENTITY_PRIVATE_KEY;
     if (!key) return { status: 503, body: { error: { code: "AUTH_UNAVAILABLE", message: "Chat identity handoff is not configured." } } };
     const assertion = await mintServiceAssertion(key, env.CHAT_IDENTITY_AUDIENCE ?? CHAT_HANDOFF_AUDIENCE, session.user);

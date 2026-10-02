@@ -117,9 +117,11 @@ describe("GET /api/auth/chat", () => {
     const response = await handleApi(new Request(url), fixture.env, url);
     expect(response && !(response instanceof Response)).toBe(true);
     if (!response || response instanceof Response) return;
-    expect(response.status).toBe(401);
-    expect(response.body).toMatchObject({ error: { code: "UNAUTHENTICATED" } });
-    expect(response.headers?.location).toBeUndefined();
+    expect(response.status).toBe(302);
+    const location = response.headers?.location ?? "";
+    expect(location.startsWith("/login?returnTo=")).toBe(true);
+    expect(decodeURIComponent(new URL(location, ORIGIN).searchParams.get("returnTo") ?? "")).toBe("/api/auth/chat");
+    expect(location).not.toContain("assertion=");
   });
 
   it("does not issue an assertion to an authenticated but disabled identity", async () => {
@@ -128,9 +130,33 @@ describe("GET /api/auth/chat", () => {
     const response = await handleApi(new Request(url, { headers: { cookie: fixture.cookie } }), fixture.env, url);
     expect(response && !(response instanceof Response)).toBe(true);
     if (!response || response instanceof Response) return;
-    expect(response.status).toBe(401);
-    expect(response.body).toMatchObject({ error: { code: "UNAUTHENTICATED" } });
-    expect(response.headers?.location).toBeUndefined();
+    expect(response.status).toBe(302);
+    expect(response.headers?.location ?? "").toMatch(/^\/login\?returnTo=/);
+    expect(response.headers?.location).not.toContain("assertion=");
+  });
+
+  it("accepts the public Chat origin and the workers.dev origin, and rejects a malformed extra origin", async () => {
+    const fixture = await makeRouteFixture();
+    fixture.env.CHAT_ORIGIN = "https://chat.infaix.com";
+    fixture.env.CHAT_EXTRA_ORIGINS = CHAT_ORIGIN;
+    const url = new URL("/api/auth/chat", ORIGIN);
+    url.searchParams.set("return_to", "https://chat.infaix.com/api/auth/core/callback?next=%2Fmessages%2Fabc");
+    const response = await handleApi(new Request(url, { headers: { cookie: fixture.cookie } }), fixture.env, url);
+    expect(response && !(response instanceof Response)).toBe(true);
+    if (!response || response instanceof Response) return;
+    expect(response.status).toBe(302);
+    expect(new URL(response.headers?.location ?? "").origin).toBe("https://chat.infaix.com");
+
+    const devUrl = new URL("/api/auth/chat", ORIGIN);
+    devUrl.searchParams.set("return_to", `${CHAT_ORIGIN}/api/auth/core/callback`);
+    const dev = await handleApi(new Request(devUrl, { headers: { cookie: fixture.cookie } }), fixture.env, devUrl);
+    expect(dev && !(dev instanceof Response) && dev.status).toBe(302);
+    if (!dev || dev instanceof Response) return;
+    expect(new URL(dev.headers?.location ?? "").origin).toBe(CHAT_ORIGIN);
+
+    fixture.env.CHAT_EXTRA_ORIGINS = "http://chat.infaix.com";
+    const broken = await handleApi(new Request(url, { headers: { cookie: fixture.cookie } }), fixture.env, url);
+    expect(broken && !(broken instanceof Response) && broken.status).toBe(503);
   });
 
   it("rejects attacker destinations with an authenticated session and never emits an assertion there", async () => {

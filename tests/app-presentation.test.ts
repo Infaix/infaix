@@ -8,10 +8,10 @@ describe("registry presentation helpers", () => {
     for (const app of INFAIX_APPS) expect(launchState(app) === "closed").toBe(!canLaunch(app));
     for (const app of getPublicApps()) if (!app.url) expect(launchState(app)).toBe("closed");
   });
-  it("keeps private Chat closed even if it were live", () => {
+  it("presents public Chat as open", () => {
     const chat = INFAIX_APPS.find((a) => a.id === "chat")!;
-    expect(launchState(chat)).toBe("closed");
-    expect(launchState({ ...chat, status: "live" })).toBe("closed");
+    expect(launchState(chat)).toBe("open");
+    expect(launchState({ ...chat, visibility: "private" })).toBe("closed");
   });
   it("marks restricted availability without granting access", () => {
     const ai = INFAIX_APPS.find((a) => a.id === "ai")!;

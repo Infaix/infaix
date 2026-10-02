@@ -28,7 +28,8 @@
   "EMAIL_FROM": "noreply@infaix.com",
     "PBKDF2_ITERATIONS": "50000",
     "CHAT_IDENTITY_AUDIENCE": "infaix-chat",
-    "CHAT_ORIGIN": "https://infaix-chat-dev.infaix.workers.dev"
+    "CHAT_ORIGIN": "https://chat.infaix.com",
+    "CHAT_EXTRA_ORIGINS": "https://infaix-chat-dev.infaix.workers.dev"
   },
   "observability": {
     "logs": {

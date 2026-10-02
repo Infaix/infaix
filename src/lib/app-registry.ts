@@ -7,7 +7,7 @@ import { publicApps } from "./app-contract";
  */
 export const INFAIX_APPS: readonly InfaixApp[] = [
   { id: "core", name: "INFAIX Core", description: "One identity. Your entry point to INFAIX.", url: "/", icon: "◇", status: "live", visibility: "public", availability: "available", requiresAuth: false },
-  { id: "chat", name: "INFAIX Chat", description: "Conversations connected by your INFAIX identity.", url: "https://chat.infaix.com", icon: "◈", status: "development", visibility: "private", availability: "unavailable", requiresAuth: true, accessRequirement: "Private development. Not released." },
+  { id: "chat", name: "INFAIX Chat", description: "Conversations connected by your INFAIX identity.", url: "https://chat.infaix.com", icon: "◈", status: "live", visibility: "public", availability: "available", requiresAuth: true },
   { id: "forge", name: "INFAIX Forge", description: "The infrastructure, projects and tools behind what we build.", url: "/forge", icon: "⬡", status: "live", visibility: "public", availability: "available", requiresAuth: false },
   { id: "ai", name: "INFAIX AI", description: "Explore AI through your INFAIX account.", url: "/ai", icon: "✧", status: "live", visibility: "public", availability: "restricted", requiresAuth: true, accessRequirement: "Sign-in and AI access required" },
   { id: "study", name: "INFAIX Study", description: "A future space for learning.", url: null, icon: "▤", status: "planned", visibility: "public", availability: "unavailable", requiresAuth: true },

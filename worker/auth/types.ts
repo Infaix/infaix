@@ -48,6 +48,8 @@ export interface Env {
   CHAT_IDENTITY_PRIVATE_KEY?: string;
   CHAT_IDENTITY_AUDIENCE?: string;
   CHAT_ORIGIN?: string;
+  /** Comma-separated extra HTTPS Chat origins, such as the workers.dev host. */
+  CHAT_EXTRA_ORIGINS?: string;
 }
 
 // Minimal structural subset of the Cloudflare D1 API we rely on, so the
