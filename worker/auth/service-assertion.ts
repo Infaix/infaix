@@ -1,9 +1,15 @@
 import { importPKCS8, SignJWT } from "jose";
+import {
+  CHAT_HANDOFF_ALGORITHM,
+  CHAT_HANDOFF_ISSUER,
+  CHAT_HANDOFF_TTL_SEC,
+  CHAT_HANDOFF_TYPE,
+} from "./chat-handoff-contract";
 import { newId } from "./crypto";
 import type { UserRow } from "./types";
 
-export const SERVICE_ASSERTION_ISSUER = "infaix-core";
-export const SERVICE_ASSERTION_TTL_SEC = 90;
+export const SERVICE_ASSERTION_ISSUER = CHAT_HANDOFF_ISSUER;
+export const SERVICE_ASSERTION_TTL_SEC = CHAT_HANDOFF_TTL_SEC;
 
 export async function mintServiceAssertion(
   privateKeyPem: string,
@@ -11,10 +17,10 @@ export async function mintServiceAssertion(
   user: Pick<UserRow, "id" | "status">
 ): Promise<string> {
   if (user.status !== "ACTIVE") throw new Error("INACTIVE_IDENTITY");
-  const key = await importPKCS8(privateKeyPem, "RS256");
+  const key = await importPKCS8(privateKeyPem, CHAT_HANDOFF_ALGORITHM);
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({})
-    .setProtectedHeader({ alg: "RS256", typ: "JWT" })
+    .setProtectedHeader({ alg: CHAT_HANDOFF_ALGORITHM, typ: CHAT_HANDOFF_TYPE })
     .setIssuer(SERVICE_ASSERTION_ISSUER)
     .setAudience(audience)
     .setSubject(user.id)

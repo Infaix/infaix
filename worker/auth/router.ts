@@ -29,6 +29,7 @@ import {
 import { mailerFor } from "./mailer";
 import { D1Store } from "./store";
 import type { Env } from "./types";
+import { CHAT_HANDOFF_AUDIENCE } from "./chat-handoff-contract";
 import { mintServiceAssertion } from "./service-assertion";
 import { verifySession } from "./sessions";
 import { handleOperations } from "../operations";
@@ -84,7 +85,7 @@ export async function handleApi(req: Request, env: Env, url: URL, executionCtx?:
     if (parsed.origin !== chatOrigin.origin) return { status: 400, body: { error: { code: "INVALID_REDIRECT", message: "Invalid return destination." } } };
     const key = env.CHAT_IDENTITY_PRIVATE_KEY;
     if (!key) return { status: 503, body: { error: { code: "AUTH_UNAVAILABLE", message: "Chat identity handoff is not configured." } } };
-    const assertion = await mintServiceAssertion(key, env.CHAT_IDENTITY_AUDIENCE ?? "infaix-chat", session.user);
+    const assertion = await mintServiceAssertion(key, env.CHAT_IDENTITY_AUDIENCE ?? CHAT_HANDOFF_AUDIENCE, session.user);
     parsed.searchParams.set("assertion", assertion);
     return { status: 302, body: null, headers: { location: parsed.toString(), "cache-control": "no-store" } };
   }
