@@ -8,7 +8,7 @@ const SIZES: Record<LogoVariant, { width: number; height: number }> = {
   navbar: { width: 14, height: 34 },
   hero: { width: 74, height: 186 },
   "hero-illuminated": { width: 74, height: 186 },
-  insignia: { width: 92, height: 230 },
+  insignia: { width: 156, height: 390 },
   footer: { width: 14, height: 34 },
   mark: { width: 10, height: 24 },
 };
@@ -50,8 +50,8 @@ export default function InfaixLogo({
             <circle cx="110" cy="110" r="96" fill="none" stroke="rgba(145,70,255,0.22)" strokeWidth="1" strokeDasharray="3 7" />
             <circle cx="110" cy="110" r="78" fill="none" stroke="rgba(190,180,210,0.14)" strokeWidth="1" />
           </g>
-          <ellipse cx="110" cy="176" rx="62" ry="12" fill="none" stroke="rgba(145,70,255,0.28)" strokeWidth="1" />
-          <ellipse cx="110" cy="176" rx="44" ry="8" fill="none" stroke="rgba(179,107,255,0.3)" strokeWidth="1" />
+          <ellipse cx="110" cy="158" rx="62" ry="12" fill="none" stroke="rgba(145,70,255,0.28)" strokeWidth="1" />
+          <ellipse cx="110" cy="158" rx="44" ry="8" fill="none" stroke="rgba(179,107,255,0.3)" strokeWidth="1" />
         </svg>
         <LogoImage
           width={width}
