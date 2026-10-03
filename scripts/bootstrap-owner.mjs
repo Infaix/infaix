@@ -280,7 +280,10 @@ const reg = await api("/api/auth/register", {
   body: { token: inviteToken, email: OWNER_EMAIL, displayName: OWNER_DISPLAY_NAME, password },
 }).catch(() => null);
 if (!reg) fail("Registration request failed (network).", "Retry once reachability is restored.");
-if (reg.status === 410) {
+// 410: invite spent/taken/locked. 409 ACCOUNT_EXISTS: public-registration
+// duplicate signal (email already registered). Both mean "an account may
+// already exist" — enter the idempotent safe-state probe, never overwrite.
+if (reg.status === 410 || (reg.status === 409 && reg.body && reg.body.error && reg.body.error.code === "ACCOUNT_EXISTS")) {
   // A concurrent account creation can still race the preflight. Revoke only
   // the invite minted by this run before reporting the safe existing state.
   if (mintedInviteId && adminTokenForCleanup) {

@@ -74,6 +74,17 @@ export default function AboutPage() {
                 </div>
               </div>
               <div className="cat-row">
+                <div className="cat-title">TRUST</div>
+                <div className="cat-desc">
+                  INFAIX publishes what it actually does with your information — the{" "}
+                  <Link href="/legal/privacy">privacy policy</Link>, the{" "}
+                  <Link href="/legal/terms">terms of use</Link>, and the{" "}
+                  <Link href="/legal/cookies">cookie policy</Link> — written from the code
+                  rather than from a template, with the undecided parts marked instead of
+                  filled in.
+                </div>
+              </div>
+              <div className="cat-row">
                 <Link
                   href="/forge"
                   className="btn-quiet"

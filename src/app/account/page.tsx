@@ -18,7 +18,7 @@ export default function AccountPage() {
         <AuthShell
           label="INFAIX // Account"
           title="ACCOUNT"
-          desc="Your identity across INFAIX. Only non-sensitive profile data is shown here."
+          desc="Your INFAIX identity. Email, verification, and the security controls for this account."
         >
           <AccountDashboard />
         </AuthShell>

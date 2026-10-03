@@ -1,7 +1,7 @@
 // In-memory Store implementation for unit tests. Mirrors D1Store
 // conditional-update semantics (claim/revoke only from PENDING).
 import type { Store, UserUpdate } from "./store";
-import type { AuditEvent, ConversationRow, InvitationRow, MessageRow, ResetRow, SessionRow, UserRow, VerificationRow } from "./types";
+import type { AuditEvent, ConversationRow, InvitationRow, MessageRow, NewsletterSubscriptionRow, ProductGrantRow, ResetRow, SessionRow, UserRow, VerificationRow } from "./types";
 
 export class MemoryStore implements Store {
   async operationsSnapshot(from: number, to: number, bucketMs: number) {
@@ -160,6 +160,33 @@ export class MemoryStore implements Store {
   }
   async expireUserVerifications(userId: string) {
     for (const v of this.verifications.values()) if (v.user_id === userId && v.status === "PENDING") v.status = "EXPIRED";
+  }
+
+  newsletter = new Map<string, NewsletterSubscriptionRow>();
+  grants = new Map<string, ProductGrantRow>();
+
+  async getNewsletterByEmail(email: string) { return this.newsletter.get(email) ?? null; }
+  async upsertNewsletter(sub: NewsletterSubscriptionRow) { this.newsletter.set(sub.email, { ...sub }); }
+  async setNewsletterStatus(email: string, status: NewsletterSubscriptionRow["status"], now: number) {
+    const row = this.newsletter.get(email);
+    if (!row) return false;
+    row.status = status;
+    row.unsubscribed_at = status === "UNSUBSCRIBED" ? now : null;
+    row.updated_at = now;
+    return true;
+  }
+
+  async insertProductGrant(g: ProductGrantRow) { this.grants.set(g.id, { ...g }); }
+  async listProductGrantsForUser(userId: string) {
+    return [...this.grants.values()].filter((g) => g.user_id === userId).sort((a, b) => b.created_at - a.created_at).map((g) => ({ ...g }));
+  }
+  async revokeProductGrant(id: string, now: number) {
+    const g = this.grants.get(id);
+    if (!g || g.status !== "ACTIVE") return false;
+    g.status = "REVOKED";
+    g.revoked_at = now;
+    g.updated_at = now;
+    return true;
   }
 
   async insertAudit(e: AuditEvent) { this.audits.push({ ...e }); }

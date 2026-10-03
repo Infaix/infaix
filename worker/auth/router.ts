@@ -14,6 +14,9 @@ import {
   handleLogin,
   handleLogout,
   handleMe,
+  handleNewsletterPreference,
+  handleNewsletterSubscribe,
+  handleNewsletterWithdraw,
   handleRegister,
   handleRequestPasswordReset,
   handleRequestVerification,
@@ -31,8 +34,9 @@ import { D1Store } from "./store";
 import type { Env } from "./types";
 import { configuredChatOrigins } from "./chat-origin";
 import { CHAT_HANDOFF_AUDIENCE } from "./chat-handoff-contract";
-import { mintServiceAssertion } from "./service-assertion";
-import { verifySession } from "./sessions";
+import { configuredStudyOrigins } from "./study-origin";
+import { STUDY_HANDOFF_AUDIENCE, STUDY_HANDOFF_CALLBACK_PATH } from "./study-handoff-contract";
+import { handleHandoff } from "./handoff";
 import { handleOperations } from "../operations";
 
 export interface ExecutionCtx {
@@ -67,23 +71,25 @@ export async function handleApi(req: Request, env: Env, url: URL, executionCtx?:
   if (method === "GET" && path === "/api/auth/me") return handleMe(ctx, req);
 
   if (method === "GET" && path === "/api/auth/chat") {
-    const origins = configuredChatOrigins(env);
-    if (!origins) return { status: 503, body: { error: { code: "AUTH_UNAVAILABLE", message: "Chat identity handoff is not configured." } } };
-    const returnTo = url.searchParams.get("return_to") ?? `${origins[0]}/api/auth/core/callback`;
-    let parsed: URL;
-    try { parsed = new URL(returnTo); } catch { return { status: 400, body: { error: { code: "INVALID_REDIRECT", message: "Invalid return destination." } } }; }
-    if (!origins.includes(parsed.origin)) return { status: 400, body: { error: { code: "INVALID_REDIRECT", message: "Invalid return destination." } } };
-    const session = await verifySession({ store: ctx.store, env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure }, req.headers.get("cookie"));
-    if (!session) {
-      const login = new URL("/login", url.origin);
-      login.searchParams.set("returnTo", `${url.pathname}${url.search}`);
-      return { status: 302, body: null, headers: { location: `${login.pathname}${login.search}`, "cache-control": "no-store" } };
-    }
-    const key = env.CHAT_IDENTITY_PRIVATE_KEY;
-    if (!key) return { status: 503, body: { error: { code: "AUTH_UNAVAILABLE", message: "Chat identity handoff is not configured." } } };
-    const assertion = await mintServiceAssertion(key, env.CHAT_IDENTITY_AUDIENCE ?? CHAT_HANDOFF_AUDIENCE, session.user);
-    parsed.searchParams.set("assertion", assertion);
-    return { status: 302, body: null, headers: { location: parsed.toString(), "cache-control": "no-store" } };
+    return handleHandoff(ctx, req, url, {
+      audience: env.CHAT_IDENTITY_AUDIENCE ?? CHAT_HANDOFF_AUDIENCE,
+      origins: configuredChatOrigins(env),
+      privateKey: env.CHAT_IDENTITY_PRIVATE_KEY,
+      defaultCallbackPath: "/api/auth/core/callback",
+      productLabel: "Chat",
+    });
+  }
+
+  // Study identity handoff. Separate audience from Chat, so a token minted for
+  // one product can never be redeemed by the other.
+  if (method === "GET" && path === "/api/auth/study") {
+    return handleHandoff(ctx, req, url, {
+      audience: env.STUDY_IDENTITY_AUDIENCE ?? STUDY_HANDOFF_AUDIENCE,
+      origins: configuredStudyOrigins(env),
+      privateKey: env.STUDY_IDENTITY_PRIVATE_KEY,
+      defaultCallbackPath: STUDY_HANDOFF_CALLBACK_PATH,
+      productLabel: "Study",
+    });
   }
 
   if (method === "POST" && path === "/api/auth/register") return handleRegister(ctx, req);
@@ -95,6 +101,10 @@ export async function handleApi(req: Request, env: Env, url: URL, executionCtx?:
   if (method === "POST" && path === "/api/auth/reset-password") return handleResetPassword(ctx, req);
   if (method === "POST" && path === "/api/auth/request-verification") return handleRequestVerification(ctx, req);
   if (method === "POST" && path === "/api/auth/verify-email") return handleVerifyEmail(ctx, req);
+
+  if (method === "POST" && path === "/api/newsletter/subscribe") return handleNewsletterSubscribe(ctx, req);
+  if (method === "GET" && path === "/api/newsletter/me") return handleNewsletterPreference(ctx, req);
+  if (method === "POST" && path === "/api/newsletter/withdraw") return handleNewsletterWithdraw(ctx, req);
 
   if (method === "POST" && path === "/api/admin/invites") return handleCreateInvite(ctx, req);
   if (method === "GET" && path === "/api/admin/invites") return handleListInvites(ctx, req);

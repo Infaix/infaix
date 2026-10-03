@@ -27,8 +27,19 @@ export interface Env {
   RL_REGISTER_WINDOW?: string;
   RL_RESET_LIMIT?: string;
   RL_RESET_WINDOW?: string;
+  /** Per-address resend/request throttle for password reset (default 5/hr). */
+  RL_RESET_EMAIL_LIMIT?: string;
+  RL_RESET_EMAIL_WINDOW?: string;
   RL_VERIFY_LIMIT?: string;
   RL_VERIFY_WINDOW?: string;
+  /** Per-address throttle for verification resend (default 5/hr). */
+  RL_VERIFY_EMAIL_LIMIT?: string;
+  RL_VERIFY_EMAIL_WINDOW?: string;
+  /** Newsletter opt-in throttle (default 10/hr per IP, 5/hr per address). */
+  RL_NEWSLETTER_LIMIT?: string;
+  RL_NEWSLETTER_WINDOW?: string;
+  RL_NEWSLETTER_EMAIL_LIMIT?: string;
+  RL_NEWSLETTER_EMAIL_WINDOW?: string;
   RL_ADMIN_LIMIT?: string;
   RL_ADMIN_WINDOW?: string;
   PBKDF2_ITERATIONS?: string;
@@ -50,6 +61,12 @@ export interface Env {
   CHAT_ORIGIN?: string;
   /** Comma-separated extra HTTPS Chat origins, such as the workers.dev host. */
   CHAT_EXTRA_ORIGINS?: string;
+  /** Study identity handoff. Separate audience from Chat, same key pair. */
+  STUDY_IDENTITY_PRIVATE_KEY?: string;
+  STUDY_IDENTITY_AUDIENCE?: string;
+  STUDY_ORIGIN?: string;
+  /** Comma-separated extra HTTPS Study origins. */
+  STUDY_EXTRA_ORIGINS?: string;
 }
 
 // Minimal structural subset of the Cloudflare D1 API we rely on, so the
@@ -116,6 +133,44 @@ export interface ResetRow {
 
 /** Same shape as password_resets. */
 export type VerificationRow = ResetRow;
+
+export type NewsletterStatus = "SUBSCRIBED" | "UNSUBSCRIBED" | "PENDING_CONFIRMATION";
+
+/**
+ * Newsletter consent record. Consent is ALWAYS separate from account
+ * creation: registering an account never creates or implies a row here.
+ * `policy_version` pins the exact consent text shown at subscribe time.
+ */
+export interface NewsletterSubscriptionRow {
+  email: string; // lowercase, primary key
+  status: NewsletterStatus;
+  consent_at: number | null; // when the subscriber last consented
+  consent_source: string | null; // e.g. "footer-form", "account-settings"
+  policy_version: string | null; // consent text / privacy-policy version shown
+  confirmed_at: number | null; // double-opt-in confirmation time
+  unsubscribed_at: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export type ProductGrantStatus = "ACTIVE" | "REVOKED" | "EXPIRED";
+
+/**
+ * Future product/beta access grant. Identity (users) grants NO product
+ * access by itself; access flows through rows here. Invitations migrate to
+ * this model by minting a grant with source_invitation_id set when an
+ * invite-scoped product claim is redeemed — never by widening the user row.
+ */
+export interface ProductGrantRow {
+  id: string; // e.g. pgr_<24 hex>
+  user_id: string;
+  product: string; // e.g. "chat", "study", "ai", "beta:<slug>"
+  status: ProductGrantStatus;
+  source_invitation_id: string | null;
+  created_at: number;
+  updated_at: number;
+  revoked_at: number | null;
+}
 
 export interface AuditEvent {
   event: string;

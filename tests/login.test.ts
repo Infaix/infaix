@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { handleLogin, handleLogout, handleMe, handleRegister } from "../worker/auth/handlers";
-import { get, makeWorld, post, registerVerifyLogin, seedInvite, sessionCookieOf } from "./helpers";
+import { get, makeWorld, post, registerVerifyLogin, sessionCookieOf } from "./helpers";
 
 describe("login", () => {
   it("succeeds with correct credentials and sets a secure cookie", async () => {
@@ -39,8 +39,7 @@ describe("login", () => {
     const w = makeWorld();
     const { userId } = await registerVerifyLogin(w);
     // unverified sibling: register but never verify
-    const { token } = await seedInvite(w);
-    await handleRegister(w.ctx, post("/api/auth/register", { token, email: "new@infaix.com", password: "Correct-Horse-99-Battery", displayName: "New" }));
+    await handleRegister(w.ctx, post("/api/auth/register", { email: "new@infaix.com", password: "Correct-Horse-99-Battery", displayName: "New" }));
     const pending = await handleLogin(w.ctx, post("/api/auth/login", { email: "new@infaix.com", password: "Correct-Horse-99-Battery" }));
     expect(pending.status).toBe(403);
 

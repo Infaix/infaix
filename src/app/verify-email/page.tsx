@@ -19,7 +19,7 @@ export default function VerifyEmailPage() {
         <AuthShell
           label="INFAIX // Verification"
           title="VERIFY EMAIL"
-          desc="Confirm your email address to activate your account. Links work once and expire after 24 hours."
+          desc="Confirm your email address to activate your account. Links work once and expire after 24 hours. Verification does not grant product access."
         >
           <Suspense fallback={<div className="ai-hint loading-state" role="status">Loading…</div>}>
             <Verifier />

@@ -85,7 +85,10 @@ describe("owner bootstrap: existing account safety", () => {
       w.ctx,
       post("/api/auth/register", { token, email: OWNER_EMAIL, password: "Different-Password-11!!", displayName: "Hijack" })
     );
-    expect(dup.status).toBe(410);
+    // Duplicate email is an explicit 409 (public-registration contract);
+    // the existing OWNER row is untouched either way.
+    expect(dup.status).toBe(409);
+    expect((dup.body as { error: { code: string } }).error.code).toBe("ACCOUNT_EXISTS");
     // Exactly one row; original password and identity preserved.
     expect(w.store.users.size).toBe(1);
     const row = await w.store.getUserByEmail(OWNER_EMAIL);

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, type PublicUser } from "@/lib/auth-client";
+import { api, rateLimitMessage, type PublicUser } from "@/lib/auth-client";
 import { safeReturnTo } from "@/lib/return-to";
 
 export default function LoginForm() {
@@ -13,6 +13,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -38,11 +39,17 @@ export default function LoginForm() {
     e.preventDefault();
     if (busy) return;
     setError(null);
+    setNeedsVerification(false);
     setBusy(true);
     const res = await api<{ user: PublicUser }>("/api/auth/login", { email, password });
     setBusy(false);
     if (!res.ok) {
-      setError(res.message ?? "Sign in failed.");
+      if (res.code === "EMAIL_NOT_VERIFIED") {
+        setNeedsVerification(true);
+        setError("Verify your email address before logging in.");
+        return;
+      }
+      setError(rateLimitMessage(res) ?? res.message ?? "Sign in failed.");
       return;
     }
     router.push(returnTo);
@@ -56,6 +63,12 @@ export default function LoginForm() {
       {error && (
         <div className="auth-error" role="alert">
           {error}
+          {needsVerification && (
+            <>
+              {" "}
+              <Link href={"/verify-email?pending=1&email=" + encodeURIComponent(email)}>Resend the verification link</Link>
+            </>
+          )}
         </div>
       )}
       <div className="auth-field">
@@ -89,7 +102,7 @@ export default function LoginForm() {
       </button>
       <div className="auth-links">
         <Link href="/forgot-password">Forgot password?</Link>
-        <Link href="/register">Have an invitation? Register</Link>
+        <Link href="/register">New here? Create an account</Link>
       </div>
     </form>
   );

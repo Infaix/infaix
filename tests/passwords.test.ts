@@ -9,7 +9,7 @@ import {
   handleResetPassword,
   handleVerifyEmail,
 } from "../worker/auth/handlers";
-import { get, makeWorld, post, registerVerifyLogin, seedInvite, sessionCookieOf } from "./helpers";
+import { get, makeWorld, post, registerVerifyLogin, sessionCookieOf } from "./helpers";
 
 describe("password storage and change", () => {
   it("never stores plaintext", async () => {
@@ -95,8 +95,7 @@ describe("password reset foundation", () => {
 describe("email verification", () => {
   it("verifies, activates, and cannot be reused", async () => {
     const w = makeWorld();
-    const { token } = await seedInvite(w);
-    await handleRegister(w.ctx, post("/api/auth/register", { token, email: "ada@infaix.com", password: "Correct-Horse-99-Battery", displayName: "Ada" }));
+    await handleRegister(w.ctx, post("/api/auth/register", { email: "ada@infaix.com", password: "Correct-Horse-99-Battery", displayName: "Ada" }));
     const ob = await w.store.latestOutbox("ada@infaix.com", "email_verification");
     if (!ob) throw new Error("no verification outbox entry");
     const vToken = ob.link_token;

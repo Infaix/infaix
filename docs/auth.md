@@ -1,11 +1,17 @@
 # INFAIX account system
 
-Invite-only identity for `infaix.com` (and later `ai.infaix.com` and future
-INFAIX services). The static Next.js frontend renders the auth pages; **all
-authentication runs server-side in the Cloudflare Worker** (`worker/`) backed
-by D1. Passwords are hashed with PBKDF2-SHA256 (Web Crypto, zero new
-dependencies). Sessions are opaque tokens in `HttpOnly` + `Secure` +
-`SameSite=Lax` cookies.
+This describes the transitional local baseline. It is not a hardened public
+signup release: Turnstile, a signup kill switch, hashed abuse scopes, atomic
+mail admission, bounded body parsing and persisted return destinations remain
+planned. Neither baseline commit is authorized for deployment.
+
+Public identity for `infaix.com` (and later `ai.infaix.com` and future
+INFAIX services): anyone can create a base account; the account grants
+identity only, never product access. The static Next.js frontend renders the
+auth pages; **all authentication runs server-side in the Cloudflare Worker**
+(`worker/`) backed by D1. Passwords are hashed with PBKDF2-SHA256 (Web Crypto,
+zero new dependencies). Sessions are opaque tokens in `HttpOnly` + `Secure`
+cookies (`SameSite=Lax` host-only in dev; `None` + `.infaix.com` in prod).
 
 ## Architecture
 
@@ -27,31 +33,36 @@ Key files:
 | `worker/auth/store.ts` | `Store` interface + `D1Store` (all SQL lives here) |
 | `worker/auth/memory.ts` | In-memory `Store` for tests |
 | `worker/auth/sessions.ts` | Session mint/verify, signed cookies |
-| `worker/auth/ratelimit.ts` | D1-backed sliding-window limits |
+| `worker/auth/ratelimit.ts` | D1-backed fixed-window limits |
 | `worker/auth/audit.ts` | Security audit events |
 | `worker/auth/mailer.ts` | Email abstraction (deterministic outbox in dev/test, Resend in production) |
 | `db/migrations/0001_init.sql` | D1 schema |
 | `scripts/new-invite.mjs` | One-time invite generator (prints SQL + URL) |
 | `src/app/login|register|account|forgot-password|reset-password|verify-email` | Static auth pages (INFAIX styling) |
 
-## Invitation flow (invite-only; no public signup exists)
+## Registration flow (public signup; invite optional)
 
 ```
-operator                     invitee
-   │                            │
-   │ node scripts/new-invite.mjs --email a@x --role USER
-   │ wrangler d1 execute …      │
-   │ ── registration URL (raw token, delivered once) ──▶
-   │                            │  /register?token=… → email + display name + password
-   │                            │  POST /api/auth/register (invite claimed atomically)
-   │                            │◀─ 201 + verification link issued (24h, single-use)
-   │                            │  /verify-email?token=… → status ACTIVE
-   │                            │  /login → HttpOnly session cookie
+visitor                          core
+  │                                │
+  │  /register → email + display name + password (+ optional invite token)
+  │  POST /api/auth/register ──────▶ 201 + verification link issued (24h, single-use)
+  │  /verify-email?token=… → status ACTIVE
+  │  /login → HttpOnly session cookie
 ```
+
+Public signups always create `USER / PENDING_VERIFICATION / ai_access=0`
+(client privilege fields ignored). A supplied invite token must resolve to a
+live server-side invitation (operator seeding: owner bootstrap, admin invites)
+and has a conditional atomic claim; dead tokens fail closed with `410`.
+User creation, that claim and verification-token creation are separate writes,
+not one atomic signup transaction.
 
 Invitations: secure random 32-byte token (stored as SHA-256 only), single-use
 atomic claim, configurable expiry (default 72h), revocation, optional email
-lock, role grant. States: `PENDING | USED | EXPIRED | REVOKED`.
+lock, role grant. States: `PENDING | USED | EXPIRED | REVOKED`. Full Phase 1
+contracts: `docs/public-registration.md` (registration/verification/reset),
+`docs/newsletter-contract.md`, `docs/privacy-data-inventory.md`.
 
 ## Sessions
 
@@ -67,32 +78,46 @@ access immediately. Disabled users cannot log in or use protected endpoints.
 PBKDF2-SHA256, unique 16-byte salt, 210k iterations default
 (`PBKDF2_ITERATIONS` tunable). Policy: 12–128 chars, 3 of 4 classes.
 Server-side only; hashes never leave the database. Unknown-email logins run a
-dummy verify so timing reveals nothing.
+dummy verify. This adds hash work for unknown emails but does not guarantee
+equal timing, especially when real hashes use a different iteration count.
 
 ## Password reset / email verification
 
 Single-use, hashed-at-rest, expiring tokens (reset 1h, verification 24h).
-Request endpoints always return neutral `200` (no enumeration). Links are
+Request endpoints normally return neutral `200` bodies for known and unknown
+emails, subject to rate-limit/provider failures; timing is not equalized. Links are
 emailed via the `Mailer` abstraction. Non-production environments record them
-in the deterministic `email_outbox` test aid. Production uses Resend only when
-`EMAIL_PROVIDER=resend`, `EMAIL_FROM`, and the `RESEND_API_KEY` runtime secret
-are configured; registration fails before claiming an invite if delivery is
-unavailable.
+in the deterministic `email_outbox` test aid and never contact a provider.
+Production uses Resend only when `EMAIL_PROVIDER=resend`, `EMAIL_FROM`, and
+the `RESEND_API_KEY` runtime secret are configured; registration fails before
+claiming an invite if delivery is unavailable. Copy, HTML, and the required
+configuration are in `docs/transactional-email.md`. Dead verification and
+reset links return distinct codes (`VERIFICATION_EXPIRED`, `VERIFICATION_USED`,
+`ALREADY_VERIFIED`, `RESET_EXPIRED`, `RESET_USED`) only when the caller already
+holds the token. Unknown links and disabled accounts stay on the generic
+invalid code.
 
 ## Rate limiting / CSRF / headers
 
-D1 sliding windows per IP (+ per-email for login), env-tunable, `429` +
-`Retry-After`. State-changing POSTs require matching `Origin`/`Referer`
-(CSRF) on top of `SameSite=Lax` cookies. Worker adds
-`X-Content-Type-Options: nosniff`. No CORS (same-origin only).
+D1 fixed windows per IP (+ raw-email scopes for login, verification resend, and
+reset request), env-tunable, `429` + `Retry-After`. State-changing POSTs require
+allowlisted `Origin`/`Referer` (CSRF) on top of `SameSite` cookies. Worker adds
+`X-Content-Type-Options: nosniff`. CORS allows explicit origins with credentials;
+it is not wildcard access. Auth bodies are buffered with `req.text()` before
+a 32,768-character check; this is not a streaming byte cap.
+
+Chat and Study handoffs preserve separate logical audiences. They currently
+validate `return_to` origins, not exact callback paths/queries. Login-to-signup
+and verification-to-login navigation do not yet preserve the product continuation.
 
 ## Roles (Phase-2 ready)
 
 `users.role`: `OWNER | ADMIN | USER` (default `USER`). `requireRole()` in
 `worker/auth/guard.ts` gates endpoints server-side. Admins manage invites and
 disable/enable accounts (an `ADMIN` cannot touch non-`USER` accounts or
-escalate invite roles; `OWNER` can). No role/permission is ever read from
-client input.
+escalate invite roles; `OWNER` can). Registration ignores client privilege
+fields, while authorized invite administration accepts a validated role.
+Registration still trusts the stored invitation role without a runtime allowlist.
 
 ## Owner AI access administration
 
@@ -123,7 +148,7 @@ invitation events. Never: passwords, hashes, raw tokens, session tokens.
 npm install
 npm run dev          # UI only (/api/* unavailable — pages show standby states)
 npm run build && npx wrangler dev   # full stack: Worker API + static site + D1 (local)
-npm test             # 49 vitest unit tests (no network)
+npm test             # current Vitest suite; count comes from the fresh run
 ```
 
 D1 setup (once): `wrangler d1 create infaix-db`, paste the id into

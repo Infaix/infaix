@@ -11,5 +11,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/forge/projects/toolboxhq`, lastModified: new Date() },
     { url: `${base}/ai`, lastModified: new Date() },
     { url: `${base}/about`, lastModified: new Date() },
+    { url: `${base}/legal`, lastModified: new Date() },
+    { url: `${base}/legal/privacy`, lastModified: new Date() },
+    { url: `${base}/legal/terms`, lastModified: new Date() },
+    { url: `${base}/legal/cookies`, lastModified: new Date() },
   ];
 }

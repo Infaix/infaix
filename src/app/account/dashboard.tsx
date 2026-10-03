@@ -3,7 +3,29 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, type PublicUser } from "@/lib/auth-client";
+import { api, rateLimitMessage, type PublicUser } from "@/lib/auth-client";
+import { NEWSLETTER_CONSENT_LABEL, NEWSLETTER_POLICY_VERSION } from "@/lib/newsletter-consent";
+
+type NewsletterStatus = "SUBSCRIBED" | "UNSUBSCRIBED" | "PENDING_CONFIRMATION" | null;
+
+function roleLabel(role: PublicUser["role"]): string {
+  if (role === "OWNER") return "Owner";
+  if (role === "ADMIN") return "Admin";
+  return "Member";
+}
+
+function statusLabel(user: PublicUser): string {
+  if (user.status === "DISABLED") return "Disabled";
+  if (user.status === "PENDING_VERIFICATION" || !user.email_verified) return "Verification required";
+  return "Active";
+}
+
+function newsletterLabel(status: NewsletterStatus): string {
+  if (status === "SUBSCRIBED") return "Subscribed";
+  if (status === "PENDING_CONFIRMATION") return "Confirmation pending";
+  if (status === "UNSUBSCRIBED") return "Unsubscribed";
+  return "Not subscribed";
+}
 
 export default function AccountDashboard() {
   const router = useRouter();
@@ -12,21 +34,28 @@ export default function AccountDashboard() {
   const [name, setName] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [msg, setMsg] = useState<{ kind: "error" | "success"; text: string } | null>(null);
-  const [operation, setOperation] = useState<"name" | "password" | null>(null);
+  const [operation, setOperation] = useState<"name" | "password" | "verify" | "news" | null>(null);
+  const [newsletter, setNewsletter] = useState<NewsletterStatus>(null);
+  const [optIn, setOptIn] = useState(false);
   const busy = operation !== null;
 
   useEffect(() => {
     let live = true;
-    api<{ user: PublicUser }>("/api/auth/me").then((res) => {
+    Promise.all([
+      api<{ user: PublicUser }>("/api/auth/me"),
+      api<{ status: NewsletterStatus }>("/api/newsletter/me"),
+    ]).then(([me, pref]) => {
       if (!live) return;
       setLoading(false);
-      if (!res.ok || !res.data) {
+      if (!me.ok || !me.data) {
         router.push("/login");
         return;
       }
-      setUser(res.data.user);
-      setName(res.data.user.display_name);
+      setUser(me.data.user);
+      setName(me.data.user.display_name);
+      if (pref.ok && pref.data) setNewsletter(pref.data.status);
     });
     return () => {
       live = false;
@@ -52,16 +81,70 @@ export default function AccountDashboard() {
     e.preventDefault();
     if (busy) return;
     setMsg(null);
+    if (newPassword !== confirmPassword) {
+      setMsg({ kind: "error", text: "Passwords do not match." });
+      return;
+    }
     setOperation("password");
     const res = await api<{ ok: boolean }>("/api/auth/change-password", { currentPassword, newPassword });
     setOperation(null);
     if (!res.ok) {
-      setMsg({ kind: "error", text: res.message ?? "Could not change password." });
+      setMsg({ kind: "error", text: rateLimitMessage(res) ?? res.message ?? "Could not change password." });
       return;
     }
     setCurrentPassword("");
     setNewPassword("");
-    setMsg({ kind: "success", text: "Password changed. Other sessions were signed out." });
+    setConfirmPassword("");
+    setMsg({ kind: "success", text: "Password changed. Other sessions were signed out. A confirmation email was sent." });
+  }
+
+  async function resendVerification() {
+    if (!user || busy) return;
+    setMsg(null);
+    setOperation("verify");
+    const res = await api("/api/auth/request-verification", { email: user.email });
+    setOperation(null);
+    if (res.code === "RATE_LIMITED") {
+      setMsg({ kind: "error", text: rateLimitMessage(res) ?? "Too many attempts. Try again later." });
+      return;
+    }
+    if (!res.ok) {
+      setMsg({ kind: "error", text: res.message ?? "Could not send a verification email." });
+      return;
+    }
+    setMsg({ kind: "success", text: "If this account still needs verification, a new link is on its way." });
+  }
+
+  async function saveNewsletter(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || busy) return;
+    setMsg(null);
+    setOperation("news");
+    if (optIn && newsletter !== "SUBSCRIBED" && newsletter !== "PENDING_CONFIRMATION") {
+      const res = await api("/api/newsletter/subscribe", {
+        email: user.email,
+        source: "account-settings",
+        policyVersion: NEWSLETTER_POLICY_VERSION,
+        consent: true,
+      });
+      setOperation(null);
+      if (!res.ok) {
+        setMsg({ kind: "error", text: rateLimitMessage(res) ?? "Newsletter preference was not saved. You are not subscribed." });
+        return;
+      }
+      setNewsletter("PENDING_CONFIRMATION");
+      setOptIn(false);
+      setMsg({ kind: "success", text: "Preference saved. You are not subscribed until that request is confirmed." });
+      return;
+    }
+    const res = await api<{ status: NewsletterStatus }>("/api/newsletter/withdraw", {});
+    setOperation(null);
+    if (!res.ok) {
+      setMsg({ kind: "error", text: rateLimitMessage(res) ?? "Could not update email preferences." });
+      return;
+    }
+    setNewsletter(res.data?.status ?? null);
+    setMsg({ kind: "success", text: "You will not receive INFAIX product news." });
   }
 
   async function logout() {
@@ -73,9 +156,16 @@ export default function AccountDashboard() {
   if (loading) return <div className="ai-hint loading-state account-content" role="status">Loading account…</div>;
   if (!user) return <div className="ai-hint loading-state account-content" role="status">Redirecting to login…</div>;
 
+  const memberSince = new Date(user.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+
   return (
     <div className="account-content">
-      {msg && <div className={msg.kind === "error" ? "auth-error" : "auth-success"} role="status">{msg.text}</div>}
+      {msg && (
+        <div className={msg.kind === "error" ? "auth-error" : "auth-success"} role={msg.kind === "error" ? "alert" : "status"}>
+          {msg.text}
+        </div>
+      )}
+      <h2 className="auth-heading">Identity</h2>
       <ul className="kv-list">
         <li>
           <span className="k">Display name</span>
@@ -86,47 +176,60 @@ export default function AccountDashboard() {
           <span className="v">{user.email}</span>
         </li>
         <li>
-          <span className="k">Status</span>
-          <span className="v">{user.status}</span>
+          <span className="k">Verification</span>
+          <span className="v">{user.email_verified ? "Verified" : "Not verified"}</span>
         </li>
         <li>
-          <span className="k">Verified</span>
-          <span className="v">{user.email_verified ? "Yes" : "No"}</span>
+          <span className="k">Account</span>
+          <span className="v">{statusLabel(user)}</span>
         </li>
         <li>
           <span className="k">Role</span>
-          <span className="v">{user.role}</span>
+          <span className="v">{roleLabel(user.role)}</span>
+        </li>
+        <li>
+          <span className="k">Member since</span>
+          <span className="v">{memberSince}</span>
         </li>
         <li>
           <span className="k">INFAIX AI</span>
           <span className="v">{user.role === "OWNER" || user.ai_access ? "Enabled" : "Not enabled"}</span>
         </li>
       </ul>
+      <p className="auth-note">This account is your INFAIX identity. It does not by itself open private products.</p>
 
       {user.role === "OWNER" || user.ai_access ? (
-        <div className="auth-links" style={{ marginTop: 16 }}>
-          <Link href="/ai">Open INFAIX AI →</Link>
+        <div className="auth-links">
+          <Link href="/ai">Open INFAIX AI</Link>
         </div>
       ) : (
-        <div className="ai-hint" style={{ marginTop: 16 }} role="status">
-          INFAIX AI — Access not enabled for this account.
-        </div>
+        <p className="auth-note" role="status">
+          INFAIX AI is not enabled for this account.
+        </p>
+      )}
+
+      {!user.email_verified && (
+        <button type="button" className="ai-send auth-submit" onClick={resendVerification} disabled={busy} aria-busy={operation === "verify"}>
+          {operation === "verify" ? "Sending…" : "Resend verification email"}
+        </button>
       )}
 
       {user.role === "OWNER" && (
-        <div className="auth-links" style={{ marginTop: 16 }}>
-          <Link href="/account/admin/ai-access">Manage AI access →</Link>
+        <div className="auth-links">
+          <Link href="/account/admin/ai-access">Manage AI access</Link>
         </div>
       )}
 
       <hr className="auth-divider" />
+      <h2 className="auth-heading">Display name</h2>
       <form onSubmit={saveName}>
         <div className="auth-field">
-          <label htmlFor="acct-name">Change display name</label>
+          <label htmlFor="acct-name">Display name</label>
           <input
             id="acct-name"
             className="ai-input"
             type="text"
+            autoComplete="nickname"
             maxLength={60}
             required
             value={name}
@@ -140,6 +243,7 @@ export default function AccountDashboard() {
       </form>
 
       <hr className="auth-divider" />
+      <h2 className="auth-heading">Password</h2>
       <form onSubmit={changePassword}>
         <div className="auth-field">
           <label htmlFor="acct-current">Current password</label>
@@ -162,8 +266,27 @@ export default function AccountDashboard() {
             type="password"
             autoComplete="new-password"
             required
+            minLength={12}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
+            disabled={busy}
+            aria-describedby="acct-pw-hint"
+          />
+          <p id="acct-pw-hint" className="auth-note">
+            At least 12 characters, using 3 of lowercase, uppercase, digits, and symbols. Other sessions are signed out.
+          </p>
+        </div>
+        <div className="auth-field">
+          <label htmlFor="acct-confirm">Confirm new password</label>
+          <input
+            id="acct-confirm"
+            className="ai-input"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={12}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={busy}
           />
         </div>
@@ -171,8 +294,69 @@ export default function AccountDashboard() {
           {operation === "password" ? "Updating…" : "Change password"}
         </button>
       </form>
+      <div className="auth-links">
+        <Link href="/forgot-password">Forgot your password?</Link>
+      </div>
 
       <hr className="auth-divider" />
+      <h2 id="email-preferences" className="auth-heading">Email preferences</h2>
+      <p className="auth-note">
+        Current newsletter status: {newsletterLabel(newsletter)}. Product news is separate from account mail such as verification and password notices.
+      </p>
+      {newsletter === "PENDING_CONFIRMATION" && (
+        <p className="auth-note" role="status">
+          A newsletter request is waiting for confirmation. You are not subscribed, and no product news is being sent.
+        </p>
+      )}
+      <form onSubmit={saveNewsletter}>
+        {newsletter !== "SUBSCRIBED" && newsletter !== "PENDING_CONFIRMATION" && (
+          <label className="auth-check" htmlFor="acct-news">
+            <input
+              id="acct-news"
+              type="checkbox"
+              checked={optIn}
+              onChange={(e) => setOptIn(e.target.checked)}
+              disabled={busy}
+            />
+            <span>{NEWSLETTER_CONSENT_LABEL}</span>
+          </label>
+        )}
+        <button type="submit" className="ai-send auth-submit" disabled={busy || (newsletter !== "SUBSCRIBED" && newsletter !== "PENDING_CONFIRMATION" && !optIn)} aria-busy={operation === "news"}>
+          {operation === "news" ? "Saving…" : newsletter === "SUBSCRIBED" || newsletter === "PENDING_CONFIRMATION" ? "Stop product news" : "Save email preference"}
+        </button>
+      </form>
+
+      <hr className="auth-divider" />
+      <h2 className="auth-heading">Privacy &amp; documents</h2>
+      <p className="auth-note">
+        These documents describe what INFAIX actually stores. Anything still awaiting an
+        owner or legal decision is marked in the text and collected on the{" "}
+        <Link href="/legal#decisions">legal centre</Link>.
+      </p>
+      <ul className="account-doc-list">
+        <li>
+          <Link href="/legal/privacy">Privacy Policy</Link>
+          <span className="account-doc-note">What is stored, why, and for how long.</span>
+        </li>
+        <li>
+          <Link href="/legal/terms">Terms of Use</Link>
+          <span className="account-doc-note">The agreement that comes with the account.</span>
+        </li>
+        <li>
+          <Link href="/legal/cookies">Cookie Policy</Link>
+          <span className="account-doc-note">One necessary cookie, no trackers, no consent dialog.</span>
+        </li>
+      </ul>
+      <p className="auth-note">
+        Turning off product news above only stops marketing. Verification, password reset
+        and security notices are transactional and cannot be switched off, because your
+        account does not work without them. There is no self-service account deletion
+        control today; that is recorded as an open decision rather than presented as a
+        feature.
+      </p>
+
+      <hr className="auth-divider" />
+      <h2 className="auth-heading">Session</h2>
       <button type="button" className="btn-quiet" onClick={logout}>
         Log out <span aria-hidden="true">→</span>
       </button>

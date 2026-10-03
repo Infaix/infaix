@@ -6,6 +6,8 @@ import type {
   D1Like,
   InvitationRow,
   MessageRow,
+  NewsletterSubscriptionRow,
+  ProductGrantRow,
   ResetRow,
   Role,
   SessionRow,
@@ -61,6 +63,14 @@ export interface Store {
   claimVerification(id: string, now: number): Promise<boolean>;
   expireVerifications(now: number): Promise<number>;
   expireUserVerifications(userId: string): Promise<void>;
+  // newsletter consent (separate from accounts; never auto-created)
+  getNewsletterByEmail(email: string): Promise<NewsletterSubscriptionRow | null>;
+  upsertNewsletter(sub: NewsletterSubscriptionRow): Promise<void>;
+  setNewsletterStatus(email: string, status: NewsletterSubscriptionRow["status"], now: number): Promise<boolean>;
+  // product/beta access grants (future invite-grant target; identity ≠ access)
+  insertProductGrant(g: ProductGrantRow): Promise<void>;
+  listProductGrantsForUser(userId: string): Promise<ProductGrantRow[]>;
+  revokeProductGrant(id: string, now: number): Promise<boolean>;
   // conversations
   insertConversation(c: ConversationRow): Promise<void>;
   listConversations(userId: string, limit: number): Promise<ConversationRow[]>;
@@ -238,6 +248,47 @@ export class D1Store implements Store {
   }
   async expireUserVerifications(userId: string): Promise<void> {
     await this.db.prepare("UPDATE email_verifications SET status = 'EXPIRED' WHERE user_id = ? AND status = 'PENDING'").bind(userId).run();
+  }
+
+  async getNewsletterByEmail(email: string): Promise<NewsletterSubscriptionRow | null> {
+    return this.db.prepare("SELECT * FROM newsletter_subscriptions WHERE email = ?").bind(email).first<NewsletterSubscriptionRow>();
+  }
+  async upsertNewsletter(sub: NewsletterSubscriptionRow): Promise<void> {
+    await this.db
+      .prepare(
+        "INSERT INTO newsletter_subscriptions (email, status, consent_at, consent_source, policy_version, confirmed_at, unsubscribed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+          "ON CONFLICT(email) DO UPDATE SET status = excluded.status, consent_at = excluded.consent_at, consent_source = excluded.consent_source, policy_version = excluded.policy_version, confirmed_at = excluded.confirmed_at, unsubscribed_at = excluded.unsubscribed_at, updated_at = excluded.updated_at"
+      )
+      .bind(sub.email, sub.status, sub.consent_at, sub.consent_source, sub.policy_version, sub.confirmed_at, sub.unsubscribed_at, sub.created_at, sub.updated_at)
+      .run();
+  }
+  async setNewsletterStatus(email: string, status: NewsletterSubscriptionRow["status"], now: number): Promise<boolean> {
+    const unsubscribedAt = status === "UNSUBSCRIBED" ? now : null;
+    const r = await this.db
+      .prepare("UPDATE newsletter_subscriptions SET status = ?, unsubscribed_at = ?, updated_at = ? WHERE email = ?")
+      .bind(status, unsubscribedAt, now, email)
+      .run();
+    return r.meta.changes > 0;
+  }
+
+  async insertProductGrant(g: ProductGrantRow): Promise<void> {
+    await this.db
+      .prepare(
+        "INSERT INTO product_grants (id, user_id, product, status, source_invitation_id, created_at, updated_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .bind(g.id, g.user_id, g.product, g.status, g.source_invitation_id, g.created_at, g.updated_at, g.revoked_at)
+      .run();
+  }
+  async listProductGrantsForUser(userId: string): Promise<ProductGrantRow[]> {
+    const r = await this.db.prepare("SELECT * FROM product_grants WHERE user_id = ? ORDER BY created_at DESC").bind(userId).all<ProductGrantRow>();
+    return r.results;
+  }
+  async revokeProductGrant(id: string, now: number): Promise<boolean> {
+    const r = await this.db
+      .prepare("UPDATE product_grants SET status = 'REVOKED', revoked_at = ?, updated_at = ? WHERE id = ? AND status = 'ACTIVE'")
+      .bind(now, now, id)
+      .run();
+    return r.meta.changes > 0;
   }
 
   async insertAudit(e: AuditEvent): Promise<void> {

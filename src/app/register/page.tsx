@@ -7,7 +7,7 @@ import RegisterForm from "./form";
 
 export const metadata: Metadata = {
   title: "Register",
-  description: "Create your INFAIX account with an invitation.",
+  description: "Create your INFAIX account.",
   robots: { index: false, follow: false },
 };
 
@@ -17,9 +17,9 @@ export default function RegisterPage() {
       <Nav />
       <main id="main-content" tabIndex={-1}>
         <AuthShell
-          label="INFAIX // Invitation"
+          label="INFAIX // Account"
           title="REGISTER"
-          desc="INFAIX registration is invite-only. Open your invitation link, then choose your credentials."
+          desc="Create your INFAIX identity. An account is not access to Chat, AI, or other private products."
         >
           <Suspense fallback={<div className="ai-hint loading-state" role="status">Loading…</div>}>
             <RegisterForm />

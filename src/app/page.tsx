@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import InfaixLogo from "@/components/infaix-logo";
 import EcosystemMap from "@/components/ecosystem-map";
 import InfaixIcon, { type IconName } from "@/components/icons";
+import NewsletterForm from "@/components/newsletter-form";
 import { getPublicApps } from "@/lib/app-registry";
 import type { InfaixApp } from "@/lib/app-contract";
 import { shortName, statusLabel } from "@/lib/app-presentation";
@@ -402,6 +403,46 @@ export default function HomePage() {
             </ScrollReveal>
           </div>
           <TerrainMesh />
+        </section>
+
+        {/* ============ MOVEMENT 2 · ASYMMETRIC INSTRUMENT ============ */}
+        <section className="section-pad news-section" aria-labelledby="news-title">
+          <div className="container instrument">
+            <div className="instrument-rail">
+              <ScrollReveal>
+                <div className="instrument-head">
+                  <span className="instrument-index" aria-hidden="true">06</span>
+                  <p className="instrument-label">Product news</p>
+                  <h2 id="news-title">Hear about it when it ships.</h2>
+                </div>
+                <p className="instrument-note">
+                  One list, first-party only. Nothing else uses it.
+                </p>
+              </ScrollReveal>
+            </div>
+            <div className="instrument-body">
+              <ScrollReveal>
+                <p className="news-lede">
+                  INFAIX ships rarely and deliberately. This is the one place to hear
+                  about a launch, a project milestone, a beta opening or a major
+                  feature release. No account is needed to subscribe, and subscribing
+                  does not create one.
+                </p>
+                <div className="news-mark" aria-hidden="true">
+                  <span className="news-mark-node is-core" />
+                  <span className="news-mark-node" />
+                  <span className="news-mark-node" />
+                </div>
+                <NewsletterForm source="homepage" className="news-form-homepage" />
+                <p className="news-transactional">
+                  Account and security messages — verification, password reset,
+                  security notices — are sent because your account needs them, and are
+                  never part of this. Turning product news off does not affect them.
+                  See the <Link href="/legal/privacy">privacy policy</Link>.
+                </p>
+              </ScrollReveal>
+            </div>
+          </div>
         </section>
       </main>
 

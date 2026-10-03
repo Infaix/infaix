@@ -123,17 +123,16 @@ export async function seedInvite(
 
 const PASSWORD = "Correct-Horse-99-Battery";
 
-/** Full happy path: invite -> register -> verify email -> login. */
+/** Full happy path: public register -> verify email -> login (no invite). */
 export async function registerVerifyLogin(
   w: TestWorld,
   opts: { email?: string; password?: string; displayName?: string } = {}
 ): Promise<{ userId: string; email: string; cookie: string }> {
   const email = opts.email ?? "ada@infaix.com";
   const password = opts.password ?? PASSWORD;
-  const { token } = await seedInvite(w);
   const reg = await handleRegister(
     w.ctx,
-    post("/api/auth/register", { token, email, password, displayName: opts.displayName ?? "Ada" })
+    post("/api/auth/register", { email, password, displayName: opts.displayName ?? "Ada" })
   );
   if (reg.status !== 201) throw new Error("setup register failed: " + JSON.stringify(reg.body));
   const outbox = await w.store.latestOutbox(email.toLowerCase(), "email_verification");

@@ -1,27 +1,23 @@
 /**
  * Core → Chat identity handoff protocol.
  *
- * Core mints the assertion. Chat verifies it in its own repository and must
- * not be imported from here: production builds clone Core alone.
- * Chat's verifier is expected to accept only this shape and to report the
- * failure codes below.
+ * Protocol-level values (algorithm, issuer, TTL, claim list, failure codes) are
+ * re-exported from the shared handoff contract so Chat and Study are guaranteed
+ * to speak the same protocol. The audience stays product-specific and is declared
+ * here, because the audience is the security boundary between products.
+ *
+ * Chat's verifier in its own repository must not import from here: production
+ * builds clone Core alone. It is expected to accept only this shape and to
+ * report the failure codes below.
  */
-export const CHAT_HANDOFF_ALGORITHM = "RS256" as const;
-export const CHAT_HANDOFF_TYPE = "JWT" as const;
-export const CHAT_HANDOFF_ISSUER = "infaix-core";
+export {
+  HANDOFF_ALGORITHM as CHAT_HANDOFF_ALGORITHM,
+  HANDOFF_TYPE as CHAT_HANDOFF_TYPE,
+  HANDOFF_ISSUER as CHAT_HANDOFF_ISSUER,
+  HANDOFF_TTL_SEC as CHAT_HANDOFF_TTL_SEC,
+  HANDOFF_CLAIMS as CHAT_HANDOFF_CLAIMS,
+  HANDOFF_FAILURE_CODES as CHAT_HANDOFF_FAILURE_CODES,
+} from "./handoff-contract";
+
+/** Audience a token must carry to be redeemable by Chat. */
 export const CHAT_HANDOFF_AUDIENCE = "infaix-chat";
-export const CHAT_HANDOFF_TTL_SEC = 90;
-
-/** Claims Core puts on the assertion. No profile, session, or secret material. */
-export const CHAT_HANDOFF_CLAIMS = ["iss", "aud", "sub", "iat", "exp", "jti"] as const;
-
-export const CHAT_HANDOFF_FAILURE_CODES = [
-  "HANDOFF_KEY_IMPORT_FAILED",
-  "HANDOFF_SIGNATURE_INVALID",
-  "HANDOFF_ISSUER_INVALID",
-  "HANDOFF_AUDIENCE_INVALID",
-  "HANDOFF_EXPIRED",
-  "HANDOFF_SUBJECT_INVALID",
-  "HANDOFF_JTI_INVALID",
-  "HANDOFF_ASSERTION_INVALID",
-] as const;

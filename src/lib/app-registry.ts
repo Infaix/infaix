@@ -10,7 +10,7 @@ export const INFAIX_APPS: readonly InfaixApp[] = [
   { id: "chat", name: "INFAIX Chat", description: "Conversations connected by your INFAIX identity.", url: "https://chat.infaix.com", icon: "chat", status: "live", visibility: "public", availability: "available", requiresAuth: true },
   { id: "forge", name: "INFAIX Forge", description: "The infrastructure, projects and tools behind what we build.", url: "/forge", icon: "forge", status: "live", visibility: "public", availability: "available", requiresAuth: false },
   { id: "ai", name: "INFAIX AI", description: "Explore AI through your INFAIX account.", url: "/ai", icon: "ai", status: "live", visibility: "public", availability: "restricted", requiresAuth: true, accessRequirement: "Sign-in and AI access required" },
-  { id: "study", name: "INFAIX Study", description: "A future space for learning.", url: null, icon: "study", status: "planned", visibility: "public", availability: "unavailable", requiresAuth: true },
+  { id: "study", name: "INFAIX Study", description: "A focused workspace for study sessions, subjects and exams.", url: null, icon: "study", status: "planned", visibility: "public", availability: "unavailable", requiresAuth: true },
   { id: "atlas", name: "INFAIX Atlas", description: "A future part of the INFAIX ecosystem.", url: null, icon: "atlas", status: "planned", visibility: "public", availability: "unavailable", requiresAuth: true },
   { id: "shop", name: "INFAIX Shop", description: "A future destination for INFAIX products.", url: null, icon: "shop", status: "planned", visibility: "public", availability: "unavailable", requiresAuth: false },
 ];
