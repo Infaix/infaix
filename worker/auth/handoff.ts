@@ -11,6 +11,7 @@
 
 import { verifySession } from "./sessions";
 import { mintServiceAssertion } from "./service-assertion";
+import { validateHandoffContinuation } from "./continuation";
 import type { HandlerContext, HandlerResult } from "./handlers";
 
 export interface HandoffConfig {
@@ -39,14 +40,8 @@ export async function handleHandoff(
 
   if (!config.origins) return unavailable();
 
-  const returnTo = url.searchParams.get("return_to") ?? `${config.origins[0]}${config.defaultCallbackPath}`;
-  let parsed: URL;
-  try {
-    parsed = new URL(returnTo);
-  } catch {
-    return invalidRedirect();
-  }
-  if (!config.origins.includes(parsed.origin)) return invalidRedirect();
+  const parsed = validateHandoffContinuation(url, config.origins, config.defaultCallbackPath);
+  if (!parsed) return invalidRedirect();
 
   const session = await verifySession(
     { store: ctx.store, env: ctx.env, now: ctx.now, ip: ctx.ip, userAgent: ctx.userAgent, secure: ctx.secure },
