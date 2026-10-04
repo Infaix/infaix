@@ -58,14 +58,67 @@ function withCacheHeaders(pathname: string, res: Response): Response {
   });
 }
 
-function secureHeaders(res: Response): Response {
-  // nosniff everywhere (safe for all content types) plus a non-breaking
-  // referrer policy. No CSP/HSTS here: CSP needs per-build script-hash
-  // validation against the Next.js export, and HSTS is managed at the
-  // Cloudflare edge — both documented in docs/authentication.md.
+/**
+ * Content-Security-Policy built from what the exported site actually loads,
+ * not from a generic template. Invented from `out/` of this build:
+ *
+ * - every script tag is same-origin (`/_next/static/chunks/...`) or an inline
+ *   Next.js RSC bootstrap payload (53 inline <script> blocks at last count);
+ * - no <iframe>, <embed> or <object> anywhere;
+ * - no external stylesheet, font or image host — CSS and assets are all
+ *   same-origin;
+ * - all API traffic, including the AI bridge, is same-origin;
+ * - ~10 inline `style` attributes from the ambient/canvas presentation.
+ *
+ * 'unsafe-inline' in script-src is a real limitation, stated plainly: a
+ * static export cannot carry a per-response nonce, and the RSC bootstrap
+ * requires inline execution. The directive still refuses scripts from any
+ * foreign origin and refuses inline use of the base URI, framing and form
+ * targets below. Removing the inline allowance needs per-request nonces,
+ * which is not possible while HTML is served as immutable static files.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+].join("; ");
+
+/** Only the capabilities this site has no use for are denied outright. */
+const PERMISSIONS_POLICY = [
+  "accelerometer=()",
+  "camera=()",
+  "geolocation=()",
+  "gyroscope=()",
+  "magnetometer=()",
+  "microphone=()",
+  "payment=()",
+  "usb=()",
+].join(", ");
+
+function secureHeaders(res: Response, env: Env): Response {
   const headers = new Headers(res.headers);
   if (!headers.has("x-content-type-options")) headers.set("X-Content-Type-Options", "nosniff");
-  if (!headers.has("referrer-policy")) headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  // Verification and reset links carry single-use tokens in the URL path
+  // query. Referer is never needed here (no third-party resources at all), so
+  // nothing is sent — that closes same-origin Referer leakage of a live token.
+  if (!headers.has("referrer-policy")) headers.set("Referrer-Policy", "no-referrer");
+  if (!headers.has("content-security-policy")) headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  if (!headers.has("permissions-policy")) headers.set("Permissions-Policy", PERMISSIONS_POLICY);
+  // HSTS is an HTTPS-only production commitment. The session cookie is already
+  // scoped to Domain=.infaix.com, so the parent domain and its subdomains must
+  // all be HTTPS-capable for this to be safe; see SECURITY.md.
+  if (env.ENVIRONMENT === "production" && !headers.has("strict-transport-security")) {
+    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
   return new Response(res.body, {
     status: res.status,
     statusText: res.statusText,
@@ -93,10 +146,10 @@ function sessionSecretValid(env: Env): boolean {
   return !!env.SESSION_SECRET && env.SESSION_SECRET.length >= 32;
 }
 
-function toResponse(result: { status: number; body: unknown; headers?: Record<string, string> }): Response {
+function toResponse(result: { status: number; body: unknown; headers?: Record<string, string> }, env: Env): Response {
   const headers = new Headers(result.headers);
   if (!headers.has("content-type")) headers.set("content-type", "application/json; charset=utf-8");
-  return secureHeaders(new Response(JSON.stringify(result.body), { status: result.status, headers }));
+  return secureHeaders(new Response(JSON.stringify(result.body), { status: result.status, headers }), env);
 }
 
 async function handleApiRequest(
@@ -107,8 +160,8 @@ async function handleApiRequest(
 ): Promise<Response | null> {
   const result = await handleApi(req, env, url, executionCtx);
   if (!result) return null;
-  const res = result instanceof Response ? result : toResponse(result);
-  return withCors(req, env, url.origin, secureHeaders(res));
+  const res = result instanceof Response ? result : toResponse(result, env);
+  return withCors(req, env, url.origin, secureHeaders(res, env));
 }
 
 const worker = {
@@ -117,13 +170,13 @@ const worker = {
     const pathname = url.pathname;
 
     if (pathname === "/api/apps" && request.method === "GET") {
-      return secureHeaders(Response.json({ version: 1, applications: getPublicApps() }, { headers: { "cache-control": "public, max-age=300" } }));
+      return secureHeaders(Response.json({ version: 1, applications: getPublicApps() }, { headers: { "cache-control": "public, max-age=300" } }), env);
     }
 
     // Account API takes precedence over static files under /api/.
     if (pathname.startsWith("/api/")) {
       const preflight = handlePreflight(request, env, url.origin);
-      if (preflight) return secureHeaders(preflight);
+      if (preflight) return secureHeaders(preflight, env);
       if (!env.INFAIX_DB || (env.ENVIRONMENT === "production" && !sessionSecretValid(env))) {
         return secureHeaders(
           withCors(
@@ -131,7 +184,8 @@ const worker = {
             env,
             url.origin,
             Response.json({ error: { code: "AUTH_UNAVAILABLE", message: "Authentication is temporarily unavailable." } }, { status: 503 })
-          )
+          ),
+          env
         );
       }
       try {
@@ -150,13 +204,14 @@ const worker = {
             env,
             url.origin,
             Response.json({ error: { code: "INTERNAL", message: "Something went wrong." } }, { status: 500 })
-          )
+          ),
+          env
         );
       }
     }
 
     const assets = env.ASSETS;
-    if (!assets) return secureHeaders(new Response("Not Found", { status: 404 }));
+    if (!assets) return secureHeaders(new Response("Not Found", { status: 404 }), env);
 
     const candidates = [
       pathname,
@@ -174,7 +229,7 @@ const worker = {
       if (!candidate) continue;
       const req = new Request(new URL(candidate, url), request);
       const res = await assets.fetch(req).catch(() => null);
-      if (res && res.ok) return secureHeaders(withCacheHeaders(candidate, res));
+      if (res && res.ok) return secureHeaders(withCacheHeaders(candidate, res), env);
     }
 
     const notFound = await assets.fetch(new URL("/404.html", url)).catch(() => null);
@@ -183,10 +238,11 @@ const worker = {
         new Response(notFound.body, {
           status: 404,
           headers: notFound.headers,
-        })
+        }),
+        env
       );
     }
-    return secureHeaders(new Response("Not Found", { status: 404 }));
+    return secureHeaders(new Response("Not Found", { status: 404 }), env);
   },
 };
 

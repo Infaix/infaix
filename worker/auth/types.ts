@@ -59,14 +59,31 @@ export interface Env {
   CHAT_IDENTITY_PRIVATE_KEY?: string;
   CHAT_IDENTITY_AUDIENCE?: string;
   CHAT_ORIGIN?: string;
-  /** Comma-separated extra HTTPS Chat origins, such as the workers.dev host. */
+  /**
+   * DEVELOPMENT-ONLY extra Chat callback origins (preview/dev Workers).
+   * Ignored outright when ENVIRONMENT === "production"; see chat-origin.ts.
+   */
   CHAT_EXTRA_ORIGINS?: string;
+  /** Extra Chat callback origins that production is allowed to trust. */
+  CHAT_PRODUCTION_EXTRA_ORIGINS?: string;
   /** Study identity handoff. Separate audience from Chat, same key pair. */
   STUDY_IDENTITY_PRIVATE_KEY?: string;
   STUDY_IDENTITY_AUDIENCE?: string;
   STUDY_ORIGIN?: string;
-  /** Comma-separated extra HTTPS Study origins. */
+  /**
+   * DEVELOPMENT-ONLY extra Study callback origins.
+   * Ignored outright when ENVIRONMENT === "production"; see study-origin.ts.
+   */
   STUDY_EXTRA_ORIGINS?: string;
+  /** Extra Study callback origins that production is allowed to trust. */
+  STUDY_PRODUCTION_EXTRA_ORIGINS?: string;
+  // Public-registration / abuse controls, parsed by worker/auth/security-config.ts.
+  // Production signup fails closed unless PUBLIC_SIGNUP_ENABLED is exactly "true".
+  PUBLIC_SIGNUP_ENABLED?: string;
+  /** Worker-only secret for the bot challenge. Never exposed to client code. */
+  TURNSTILE_SECRET_KEY?: string;
+  TURNSTILE_ALLOWED_HOSTNAMES?: string;
+  AUTH_ABUSE_HMAC_SECRET?: string;
 }
 
 // Minimal structural subset of the Cloudflare D1 API we rely on, so the

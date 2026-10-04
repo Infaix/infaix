@@ -15,6 +15,14 @@
   // Secrets are NEVER stored here — set them with:
   //   wrangler secret put SESSION_SECRET        # openssl rand -hex 32 (min 32 chars)
   //   wrangler secret put ADMIN_BOOTSTRAP_TOKEN # openssl rand -hex 32 (one-time seeding, then remove)
+  //   wrangler secret put RESEND_API_KEY        # transactional mail
+  //   wrangler secret put CHAT_IDENTITY_PRIVATE_KEY
+  //
+  // PUBLIC REGISTRATION IS CLOSED IN THIS CONFIGURATION.
+  // In production, public signup proceeds only when PUBLIC_SIGNUP_ENABLED is
+  // exactly "true". This file does not set that variable. The gate is a kill
+  // switch only: the Worker does not verify a Turnstile token. Do not add
+  // PUBLIC_SIGNUP_ENABLED here until that prerequisite is actually implemented.
   "d1_databases": [
     {
       "binding": "INFAIX_DB",
@@ -27,9 +35,17 @@
   "EMAIL_PROVIDER": "resend",
   "EMAIL_FROM": "noreply@infaix.com",
     "PBKDF2_ITERATIONS": "50000",
+    // Identity-handoff audience and the ONE production Chat callback origin
+    // Core is willing to mint an assertion for.
+    //
+    // There is deliberately no development Chat origin in this file. The
+    // development/preview origin belongs in a non-production environment
+    // declaration (CHAT_EXTRA_ORIGINS), which worker/auth/chat-origin.ts
+    // ignores whenever ENVIRONMENT === "production". A *.workers.dev preview
+    // deployment must never be a trusted recipient of a production identity
+    // assertion.
     "CHAT_IDENTITY_AUDIENCE": "infaix-chat",
-    "CHAT_ORIGIN": "https://chat.infaix.com",
-    "CHAT_EXTRA_ORIGINS": "https://infaix-chat-dev.infaix.workers.dev"
+    "CHAT_ORIGIN": "https://chat.infaix.com"
   },
   "observability": {
     "logs": {

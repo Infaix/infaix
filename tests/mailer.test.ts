@@ -4,8 +4,12 @@ import { mailerFor } from "../worker/auth/mailer";
 import type { Env } from "../worker/auth/types";
 import { makeWorld, ORIGIN, post, registerVerifyLogin, seedInvite } from "./helpers";
 
+// These cases exercise PRODUCTION mail delivery and the signup gate, not
+// signup policy. PUBLIC_SIGNUP_ENABLED must be declared explicitly because
+// production signup fails closed without it.
 const PROD_MAIL: Partial<Env> = {
   ENVIRONMENT: "production",
+  PUBLIC_SIGNUP_ENABLED: "true",
   EMAIL_PROVIDER: "resend",
   EMAIL_FROM: "INFAIX <identity@infaix.com>",
   RESEND_API_KEY: "re_test_transactional_provider_key",
@@ -68,7 +72,7 @@ describe("transactional production mail", () => {
   });
 
   it("fails safely before claiming an invite when production delivery is not configured", async () => {
-    const w = makeWorld({ ENVIRONMENT: "production" });
+    const w = makeWorld({ ENVIRONMENT: "production", PUBLIC_SIGNUP_ENABLED: "true" });
     const { token, id } = await seedInvite(w, { email: "member@infaix.com" });
     const res = await handleRegister(
       w.ctx,

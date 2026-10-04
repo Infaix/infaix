@@ -5,6 +5,7 @@
 import { NEWSLETTER_POLICY_VERSION, NEWSLETTER_SOURCES } from "../../src/lib/newsletter-consent";
 import { audit } from "./audit";
 import { AuthBodyError, readAuthJson } from "./body";
+import { publicSignupDecision } from "./security-config";
 import { checkRequestOrigin } from "./cors";
 import { hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
 import { acceptedCurrentLegal, CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION, LEGAL_ACCEPTANCE_SOURCE } from "./legal";
@@ -69,6 +70,30 @@ async function deliverNotice(task: Promise<void>, label: string): Promise<boolea
   } catch (error) {
     console.error(`${label} failed`, { name: error instanceof Error ? error.name : "Error" });
     return false;
+  }
+}
+
+/**
+ * Delivery failure on an ACCOUNT-DISCOVERY endpoint must stay invisible to the
+ * caller.
+ *
+ * handleRequestPasswordReset and handleRequestVerification are deliberately
+ * enumeration-resistant: they answer identically whether or not the address
+ * belongs to an account. Letting a provider error escape would break that,
+ * because only a real account ever reaches the send — the provider's 500 for
+ * an existing inbox versus a neutral 200 for an unknown one is an oracle.
+ *
+ * So the failure is recorded operationally (never with tokens or addresses)
+ * and the caller still receives the same neutral response. Authenticated
+ * flows do not use this: handleChangePassword and handleResetPassword report
+ * truthful delivery status through deliverNotice instead, because a known user
+ * is entitled to know whether the notice actually went out.
+ */
+async function deliverQuietly(task: Promise<void>, label: string): Promise<void> {
+  try {
+    await task;
+  } catch (error) {
+    console.error(`${label} failed`, { name: error instanceof Error ? error.name : "Error" });
   }
 }
 
@@ -169,6 +194,11 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
   diagnostic("start");
   if (!checkRequestOrigin(req, ctx.env, ctx.origin)) return err("FORBIDDEN", "Forbidden.", 403);
   diagnostic("origin-ok");
+  // Server-side kill switch. Checked before any credential work, storage or
+  // mail, and driven only by the Worker's own environment bindings.
+  const signup = publicSignupDecision(ctx.env);
+  if (!signup.ok) return err(signup.code, signup.message, signup.status);
+  diagnostic("signup-gate-ok");
   const rl = limitFromEnv(ctx.env, "RL_REGISTER_LIMIT", "RL_REGISTER_WINDOW", 10, 3600);
   const gate = await checkRateLimit(ctx.store, `register:${ctx.ip ?? "unknown"}`, rl, ctx.now());
   if (!gate.allowed) return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
@@ -473,7 +503,10 @@ export async function handleRequestPasswordReset(ctx: HandlerContext, req: Reque
       expires_at: now + 60 * 60 * 1000,
       used_at: null,
     });
-    await ctx.mailer.sendPasswordReset(email, flowLink(ctx.origin, "/reset-password", token), now);
+    await deliverQuietly(
+      ctx.mailer.sendPasswordReset(email, flowLink(ctx.origin, "/reset-password", token), now),
+      "password-reset-mail"
+    );
     await audit(ctx.store, "PASSWORD_RESET_REQUESTED", { target: user.id, ip: ctx.ip, now });
   }
   return json({ ok: true });
@@ -566,16 +599,10 @@ export async function handleRequestVerification(ctx: HandlerContext, req: Reques
     });
     diagnostic("verification-inserted");
     diagnostic("before-sendVerification");
-    try {
-      await ctx.mailer.sendVerification(email, flowLink(ctx.origin, "/verify-email", token), now);
-    } catch (e) {
-      console.error("verify:sendVerification failed", {
-        name: e instanceof Error ? e.name : typeof e,
-        message: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
-      });
-      throw e;
-    }
+    await deliverQuietly(
+      ctx.mailer.sendVerification(email, flowLink(ctx.origin, "/verify-email", token), now),
+      "verification-mail"
+    );
     diagnostic("after-sendVerification");
     await audit(ctx.store, "EMAIL_VERIFICATION_SENT", { target: user.id, ip: ctx.ip, now });
   }

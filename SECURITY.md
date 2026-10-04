@@ -1,80 +1,178 @@
-# Security policy — INFAIX website & account system
+# Security policy — INFAIX Core candidate
+
+This describes the code in this candidate. It is not a penetration test, a
+certification, a production approval, or a claim that public registration is
+safe to open.
 
 ## Scope
 
-The public INFAIX site (static Next.js export on Cloudflare Workers Static
-Assets) plus the same-origin account API in `worker/` (D1 + Web Crypto).
+Static Next.js export served by a Cloudflare Worker, plus the same-origin
+account API in `worker/` (D1 and Web Crypto).
 
-## What is protected, and how
+## Registration and legal acknowledgement
 
-This is a transitional local baseline, not approval for public release. The
-approved signup/abuse-hardening plan has not been implemented or deployed.
+Public signup creates a base identity only: role `USER`, status
+`PENDING_VERIFICATION`, `email_verified` 0, `ai_access` 0, and no product
+grant. Client `role`, `ai_access`, newsletter flags, and legal `source` are
+ignored. An operator invite, when present, is the only way a non-default role
+is applied, and that role comes from the stored invitation.
 
-| Area | Control |
-|---|---|
-| Passwords | PBKDF2-SHA256, unique salts, server-side only, never logged/returned |
-| Sessions | Opaque tokens (hash at rest), `HttpOnly`, production `Secure; SameSite=None; Domain=.infaix.com`, dev host-only `SameSite=Lax`, fresh mint per login, 30-day sliding expiry |
-| Registration | Public signup with least-privilege defaults (USER, PENDING_VERIFICATION, ai_access=0); privilege never from client input; optional operator-invite path with single-use atomic claim, expiry, revocation, email lock |
-| Login | Generic invalid-credential errors, dummy hash work for unknown emails, IP + per-email rate limits, status checks; uniform timing is not guaranteed |
-| Reset/verify | Single-use hashed expiring tokens (reset 1h, verify 24h), neutral responses, per-IP + per-address rate limits, sibling-token invalidation on use |
-| Admin | Session role checks (`OWNER`/`ADMIN`) or one-time bootstrap token; destructive actions need sessions |
-| CSRF | Origin/`Referer` allowlist check on state-changing API calls + `SameSite=Lax` (dev) / cross-subdomain `SameSite=None; Secure` with allowlist CORS in production |
-| Injection | Bound parameters and input validators; auth JSON is fully buffered before a 32,768-character check, not a bounded byte-stream parser |
-| XSS | React escaping; no `dangerouslySetInnerHTML` in auth UI; JSON-only API |
-| Headers | `X-Content-Type-Options: nosniff` on Worker responses; no blanket CSP (would risk inline Next.js runtime) |
-| Audit | Login/account/password/invitation events; log payloads must exclude secrets, but free-form error logging still needs hardening |
+The current Terms and Privacy versions are server constants. A missing, false,
+or stale acknowledgement is rejected and creates nothing. The user row, the
+`legal_acceptances` row, and the first verification token are inserted in one
+D1 batch. A failed statement rolls the batch back. There is no create-then-delete
+compensation.
 
-## Threat review (summary)
+Newsletter consent is a separate request. Accepting Terms does not subscribe
+anyone.
 
-- **Auth bypass**: sessions verified by signature + DB row + expiry + live
-  `ACTIVE` status on every request. No client-provided identity is trusted
-  (tested: profile edits resolve identity from the session; registration
-  ignores client privilege fields).
-- **IDOR / privilege escalation**: no by-ID user endpoints except admin-gated
-  ones; `ADMIN` cannot affect `OWNER`/other admins or self; invite roles
-  cannot be escalated by non-owners (tested).
-- **Session fixation**: fresh token minted at login; presented tokens ignored.
-- **Brute force**: D1 fixed-window limits on login/register/reset/verify/admin
-  with `429` + `Retry-After` (tested).
-- **Enumeration**: reset/resend normally return the same success body for
-  known and unknown emails, subject to rate-limit/provider errors. Work and
-  timing differ because known accounts may mutate tokens and send mail.
-  Public signup exposes duplicates through `409 ACCOUNT_EXISTS`; the approved
-  generic `202` signup contract is not implemented.
-- **Token replay**: all single-use tokens claimed with conditional
-  `UPDATE … WHERE status='PENDING'` (atomic under concurrency); sibling
-  pending tokens expire on successful use and on re-request (tested).
-- **Secret leakage**: responses expose only `PublicUser`; invite list strips
-  token hashes; raw invite token returned once at creation (tested). No
-  secrets committed (`.env*`/`.dev.vars` gitignored; history scanned).
-- **Redirects**: login accepts validated relative paths; product handoffs
-  validate the callback origin only. Exact callback-path/query validation and
-  persisted signup continuation are not implemented.
-- **Unsafe reset**: 1-hour expiry, single-use, kills all sessions on success.
+Migration `0005_legal_acceptance.sql` must be applied before this registration
+path is enabled. It has not been applied by this candidate.
 
-## Known limitations (not claimed secure against)
+## Public-signup kill switch
 
-- No `PUBLIC_SIGNUP_ENABLED` kill switch, Managed Turnstile validation,
-  login challenge step-up, hashed email abuse scopes, combined mail admission,
-  or bounded auth-body parsing yet.
-- User insertion, invite claim and verification-token creation are separate
-  operations. Individual claims are conditional/atomic; the whole signup is
-  not transactional. Invite role validation still trusts the stored role.
-- Token claims, account updates and sibling invalidation are also separate
-  operations. No transaction-wide atomicity is claimed.
-- D1 counters increment and then read in separate queries; scopes include raw
-  emails. Mail delivery has no bounded timeout or idempotency key yet.
+`publicSignupDecision` runs before registration does any storage or mail. In
+production the request proceeds only when `PUBLIC_SIGNUP_ENABLED` is exactly
+`"true"`. Missing, false, or malformed values return `403 SIGNUP_DISABLED`.
+The client body cannot override the binding. `wrangler.jsonc` does not set the
+variable, so this production configuration leaves public registration closed.
 
-- No 2FA / WebAuthn yet; sessions are bearer tokens — XSS in any page would
-  be game over (standard mitigation: keep dependencies patched, no inline
-  scripts in auth UI).
-- Production email delivery needs a provider before reset/verify work live.
-- `wrangler dev` serves D1 locally; review D1 access controls in Cloudflare.
-- PBKDF2 cost assumes Workers CPU headroom (paid plan); verify under load.
-- Rate limits include per-IP and selected per-email scopes: shared NATs share budgets; authenticated-user
-  scopes can be added if abuse appears.
+Development and test environments stay open so local work and the suite are
+not coupled to that secret.
 
-## Reporting
+Opening the switch is not bot protection. The Worker does not verify a
+Turnstile token. `TURNSTILE_SECRET_KEY` is parsed by `authSecurityConfig` and
+is not consulted by any handler.
 
-Security issues: contact the INFAIX operator directly. Do not open public
-issues with exploit details.
+## Request bodies
+
+Auth JSON is fully buffered and rejected above 32,768 characters before it is
+parsed. That is a character cap, not a streaming byte limit.
+
+## Abuse controls that are actually enforced
+
+Live limits use `checkRateLimit` and `rate_limit_hits`. The window is fixed.
+Defaults below apply unless an `RL_*` environment variable overrides them.
+The limiter key for anonymous routes is `CF-Connecting-IP` as read by
+`apiContext`. On a request that reaches this Worker through Cloudflare, that
+header is set by the edge. The live path does not also require the `cf`
+metadata object, and it does not read `X-Forwarded-For`. A missing header
+shares the scope `unknown`. Storage errors are not caught inside
+`checkRateLimit`, so the request fails instead of being admitted. There is no
+scheduled prune of `rate_limit_hits`. Email scopes store the raw normalized
+email in the counter key.
+
+| Route | Status | Key | Default | Storage | On storage failure |
+|---|---|---|---|---|---|
+| `POST /api/auth/register` | Application enforced | `register:<ip>` | 10 / 3600s | `rate_limit_hits` | Request fails |
+| `POST /api/auth/login` | Application enforced | `login:ip:<ip>` and `login:email:<email>` | 10 / 600s, email limit is twice the IP limit | `rate_limit_hits` | Request fails |
+| `POST /api/auth/request-verification` | Application enforced | `verify-send:<ip>` and `verify-send:email:<email>` | 10 / 3600s and 5 / 3600s | `rate_limit_hits` | Request fails |
+| `POST /api/auth/verify-email` | Application enforced | `verify-use:<ip>` | 10 / 3600s | `rate_limit_hits` | Request fails |
+| `POST /api/auth/request-password-reset` | Application enforced | `reset:<ip>` and `reset:email:<email>` | 5 / 3600s each | `rate_limit_hits` | Request fails |
+| `POST /api/auth/reset-password` | Application enforced | `reset-use:<ip>` | 5 / 3600s | `rate_limit_hits` | Request fails |
+| `POST /api/newsletter/subscribe` | Application enforced | `newsletter:<ip>` and `newsletter:email:<email>` | 10 / 3600s and 5 / 3600s | `rate_limit_hits` | Request fails |
+| `POST /api/newsletter/withdraw` | Application enforced | `newsletter-withdraw:<user id>` | 10 / 3600s | `rate_limit_hits` | Request fails |
+| `POST /api/auth/change-password` | Application enforced | `change-pw:<user id>` | 10 / 600s | `rate_limit_hits` | Request fails |
+| Admin invite and user routes | Application enforced | `admin-invite:<ip>` or `admin-users:<ip>` | 30 / 3600s | `rate_limit_hits` | Request fails |
+| Core → Chat/Study handoff | Not implemented | — | — | — | No application limiter |
+
+These counters are not a DDoS control. Shared NATs share a budget. Cloudflare
+edge configuration, if any, is outside this repository.
+
+## Hashed abuse store (present, not on the request path)
+
+`worker/auth/abuse.ts` and `worker/auth/security-store.ts` came from a
+concurrent workstream and were reviewed before this candidate included them.
+No handler, router, or handoff calls them.
+
+`abuseDigest` is HMAC-SHA256 over `purpose`, a NUL, and the signal. Email
+purposes use `normalizeEmail` first, so case and surrounding whitespace do not
+create a second key. The secret is `AUTH_ABUSE_HASH_SECRET` only. It must be
+32–4096 bytes with no surrounding whitespace. A missing or malformed secret
+throws `AuthSecurityUnavailable`. The digest does not contain the raw signal.
+
+`networkSignal` returns a canonical IP only when the caller passes an injected
+signal, or when the request has Cloudflare `cf` metadata and
+`CF-Connecting-IP` parses as one IPv4 or IPv6 address. `X-Forwarded-For` is
+ignored. Invalid or missing values share the label `shared-untrusted`. This
+function is not what `apiContext` uses today.
+
+`D1SecurityStore.hitAttempt` upserts `auth_attempt_windows` in one statement.
+`reserveEmailSend` upserts `auth_email_send_admission` in one statement
+(60-second cooldown, 5 combined sends per hour, 3 per purpose). A lost race
+does not receive the winner's reservation id. Any thrown storage error,
+including a missing table, returns `allowed: false` with reason `UNAVAILABLE`.
+That is fail closed for a caller that used the store. Because no route uses
+it, a missing migration `0006` does not change live registration, login, or
+mail behavior.
+
+Rows store a 64-character hex digest, window start, counts, and expiry
+timestamps. They do not store a raw IP, raw email, account id, user agent, or
+device id. `expires_at` is set 48 hours ahead. `pruneExpired` can delete
+expired rows, and nothing schedules it. Do not treat 48 hours as an enforced
+retention period.
+
+`0006` is additive. It also adds a nullable `continuation` column on
+`email_verifications`. No handler reads or writes that column. Do not apply
+`0006` until a later change actually calls this store.
+
+## Enumeration and mail
+
+Password-reset request and verification resend return `{ ok: true }` for an
+unknown address, a known address whose mail is sent, and a known address whose
+provider throws. Provider failures are logged by error name only. Authenticated
+password change and reset still return `passwordChanged` and
+`notificationDelivered` separately, and the UI claims a security email only
+when delivery succeeded.
+
+Registration still returns `409 ACCOUNT_EXISTS` for a duplicate email.
+
+## Verification and recovery
+
+Verification tokens are 24 hours, reset tokens are 1 hour, both stored as
+SHA-256, single-use via a conditional claim. The verify page suppresses a
+second client submission of the same token. The server remains authoritative
+for used, expired, and invalid tokens.
+
+## Sessions
+
+Opaque token, hash at rest, `HttpOnly`. Production cookies are `Secure`,
+`SameSite=None`, `Domain=.infaix.com`. A new login mints a new session.
+
+## Product handoff
+
+`/api/auth/chat` and `/api/auth/study` validate the callback with
+`validateHandoffContinuation` before a session is read and before an assertion
+is attached. The callback must be an exact configured `https` origin plus the
+product callback path. Protocol-relative URLs, `javascript:` and `data:` URLs,
+userinfo, fragments, unexpected ports, encoded path tricks, and duplicate
+routing parameters are rejected. Production reads `CHAT_ORIGIN` and
+`CHAT_PRODUCTION_EXTRA_ORIGINS` only. `CHAT_EXTRA_ORIGINS` is ignored when
+`ENVIRONMENT` is `production`, so a development `*.workers.dev` origin in that
+variable is not a production assertion recipient. Study uses the same split.
+The committed `wrangler.jsonc` sets `CHAT_ORIGIN` to `https://chat.infaix.com`
+and sets no extra origin. The assertion audience is `infaix-chat`. Handoff
+does not grant Chat access by itself; the product still redeems the assertion.
+
+## Security headers
+
+The Worker sets these when the response does not already have them:
+
+- `Content-Security-Policy`: `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'`
+- `Strict-Transport-Security`: `max-age=31536000; includeSubDomains` only when `ENVIRONMENT` is `production`
+- `X-Content-Type-Options`: `nosniff`
+- `Referrer-Policy`: `no-referrer`
+- `Permissions-Policy`: accelerometer, camera, geolocation, gyroscope, magnetometer, microphone, payment, and usb are denied
+
+`script-src` allows `'unsafe-inline'` because the static export's RSC
+bootstrap is inline and this Worker does not attach a per-response nonce.
+Nothing here is a claim that the headers are active in production until this
+candidate is deployed.
+
+## Known prerequisites
+
+- Apply `0005` before enabling the registration path that writes `legal_acceptances`.
+- Do not apply `0006` for its own sake. Nothing reads it.
+- Do not set `PUBLIC_SIGNUP_ENABLED=true` until a real bot check exists. Turnstile is not implemented.
+- Handoff has no application rate limit.
+- Live rate-limit and audit rows still contain raw network addresses, and mail-scope counters contain raw emails.

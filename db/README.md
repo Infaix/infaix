@@ -28,7 +28,9 @@ wrangler d1 execute infaix-db --local --file=db/migrations/0001_init.sql
 | `password_resets` | Single-use hashed 1-hour tokens |
 | `email_verifications` | Single-use hashed 24-hour tokens |
 | `audit_log` | Security events (no secrets, ever) |
-| `rate_limit_hits` | Fixed-window counters; existing email scopes contain raw addresses |
+| `rate_limit_hits` | Fixed-window counters used by the live API; email scopes contain raw addresses |
+| `auth_attempt_windows` | Hashed attempt counters from migration 0006. Not written by any handler |
+| `auth_email_send_admission` | Hashed mail-admission rows from migration 0006. Not written by any handler |
 | `email_outbox` | Dev/test delivery only: `password_reset`, `email_verification`, `account_welcome`, `password_changed`. Production never writes here |
 
 Raw single-use tokens are never stored — only their SHA-256 hashes — except

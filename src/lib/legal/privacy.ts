@@ -467,7 +467,7 @@ export const privacyPolicy: LegalDocument = {
             "Session tokens are random, stored only as a hash, signed with an HMAC so tampering is detectable, and are rotated on every sign-in.",
             "The session cookie is marked HttpOnly and Secure, and in production is scoped to the INFAIX domain with a SameSite policy that requires same-site requests.",
             "State-changing requests are checked against an allowlist of origins, which blocks cross-site request forgery.",
-            "Sign-in, registration, verification and password reset are rate limited per network address, and the sensitive ones are limited per address as well.",
+            "Sign-in, registration, verification, password reset and newsletter requests are rate limited. The counter is keyed by the request network address, and the mail flows are also keyed by the email address. Those keys are stored with the counter. No separate deletion job removes them.",
             "Failed sign-in attempts take the same time whether or not the account exists, so the form cannot be used to discover who has an account.",
             "Passwords, hashes and tokens are excluded from logs and audit records by construction, and the project's tests enforce that.",
             "The service tells browsers not to sniff content types and not to leak the full URL to other sites.",

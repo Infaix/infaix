@@ -9,8 +9,12 @@ import { get, makeWorld, ORIGIN, post, registerVerifyLogin } from "./helpers";
 
 // The helper deliberately uses an in-memory OutboxMailer. These values only
 // satisfy the production delivery preflight; no external provider is called.
+// PUBLIC_SIGNUP_ENABLED is declared because production signup fails closed
+// without it; this file tests cookie/header/production semantics, not signup
+// policy.
 const PROD_ENV = {
   ENVIRONMENT: "production",
+  PUBLIC_SIGNUP_ENABLED: "true",
   EMAIL_PROVIDER: "resend",
   EMAIL_FROM: "INFAIX <identity@infaix.com>",
   RESEND_API_KEY: "re_test_transactional_provider_key",
