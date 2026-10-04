@@ -33,10 +33,28 @@ files contain no storage API calls at all.
 Routes: `/legal`, `/legal/privacy`, `/legal/terms`, `/legal/cookies`
 (19 → 23 static routes). All four added to `src/app/sitemap.ts`.
 
+The hub is organised in four bands: the documents, **Your controls** (only
+controls that genuinely work today, with deletion, export and privacy requests
+shown as a labelled gap rather than a dead button), how the text is written,
+and the classified outstanding list.
+
 Content lives in `src/lib/legal-content.ts` (model + review markers) and
 `src/lib/legal/{privacy,terms,cookies}.ts` (prose). `src/components/legal-document.tsx`
 renders any of them. The content is data, not JSX, so it is scannable and
 assertable in tests.
+
+## 2a. Legal acceptance records (added after the Phase 2 acceptance backend)
+
+Phase 2 made acknowledgement server-enforced and stored it in
+`legal_acceptances` (`0005_legal_acceptance.sql`). The Privacy Policy and Terms
+now disclose it: which account, which Terms version, which Privacy version,
+`source = registration`, and when — and state explicitly that the record holds
+**no IP address, no user agent and no device information**, and is not joined to
+the newsletter subscription.
+
+The decision "should acceptance be stored server-side" is no longer open, so that
+marker was **removed**; it is replaced by `legal-acceptance-retention`, which is
+genuinely undecided.
 
 ## 3. Verified data inventory used
 
@@ -148,15 +166,14 @@ homepage and in the footer. `/legal/privacy` measures 14,986 px at 1280 and
 text. Both are reference pages reached by explicit navigation, not landing
 pages.
 
-## 8. Gates (all green, 2026-10-03)
+## 8. Gates (reconciliation run, 2026-10-04)
 
-- `npm test` — 245 passed / 28 files (was 210 / 25; +24 legal tests, +11 from
-  the Phase 1/2 tree already present)
+- `npm test` — 338 passed / 37 files
 - `npx tsc --noEmit` — clean
 - `npm run lint` — clean, 0 errors 0 warnings
 - `npm run build` — 23 static routes
-- `npx wrangler deploy --dry-run` — 142.47 KiB / 32.94 KiB gzip
-- `git diff --check` — clean
+- `npx wrangler deploy --dry-run` — 147.25 KiB / 34.18 KiB gzip, exited before deploy
+- `git diff --check` — clean aside from existing CRLF warnings
 
 Chat remains private: no `infaix-chat-dev` or `127.0.0.1` string in `out/`.
 Nothing deployed.
@@ -173,30 +190,45 @@ holds files in it, so stop the server before rebuilding.
 
 ## 9. Unresolved decisions
 
-29 markers live in `REVIEW_MARKERS`, grouped on `/legal#decisions`, and each one
-appears inline in the document that needs it. A test asserts the groups
-partition the marker set, so a decision cannot be added without showing up.
+32 markers live in `REVIEW_MARKERS`, grouped on `/legal#decisions`, and each one
+appears inline in the document that needs it. Every marker carries one of four
+classifications from `MARKER_KINDS`. `REVIEW_MARKERS` is a `const` tuple, so
+`MarkerId` is the union of real ids rather than `string`; `MARKER_KINDS` is typed
+`Record<MarkerId, MarkerKind>`, which makes an unclassified marker a compile
+error (`TS2741`) rather than a runtime surprise. This was verified by injecting a
+temporary unclassified marker and confirming the build fails, then removing it.
+A test asserts the same at runtime and that the groups partition the marker set.
+
+| Kind | Count | Meaning |
+|---|---|---|
+| OWNER DECISION REQUIRED | 14 | Only INFAIX can settle it |
+| LEGAL REVIEW REQUIRED | 13 | Drafting question for counsel |
+| PRODUCT GAP | 4 | A control that does not exist |
+| IMPLEMENTATION UNKNOWN | 1 | The code does not establish the fact |
 
 **Who INFAIX is, and who to ask** — legal entity and registered address;
 monitored privacy contact channel; applicable regime and regulator; lawful basis
 per purpose; processing locations and transfer mechanism; formal processor list;
 minimum age.
 
-**Retention** — accounts after closure; audit log; spent single-use tokens;
-expired sessions and rate-limit counters; newsletter records including
-unsubscribed rows; AI conversations; Cloudflare edge log retention.
+**How long data is kept** — legal acceptance records; accounts after closure;
+audit log; spent single-use tokens; expired sessions and rate-limit counters;
+newsletter records including unsubscribed rows; AI conversations; Cloudflare
+edge log retention.
 
-**Rights, requests and consent** — erasure requests (no self-service deletion
-exists today); formal access and rectification requests; unsubscribe for people
-who subscribed with only an email address; marketing send infrastructure and
-the double opt-in confirmation flow; the consent gate to be used if optional
-technology is ever introduced.
+**Controls that do not exist yet** — account deletion; data export; formal access
+and rectification requests; token-gated unsubscribe for people who subscribed
+with only an email address.
 
-**Terms drafting** — suspension and termination procedure; whether acceptance
-should be recorded server-side and how; limitation of liability; warranty
-disclaimer; user content and feedback licensing; trademarks; availability
-commitments; governing law and forum; acceptable-use detail; whether Study,
-Atlas and Shop carry their own terms on launch.
+**Communications and consent** — marketing send infrastructure and the double
+opt-in confirmation flow; the consent gate to be used if optional technology is
+ever introduced.
+
+**Terms drafting** — suspension and termination; limitation of liability;
+warranty disclaimer; user content and feedback licensing; trademarks;
+availability commitments; governing law and forum; acceptable-use detail; the
+AI output notice; whether Study, Atlas and Shop carry their own terms; and the
+commerce compliance pass required before Shop can take an order.
 
 ## 10. Files
 

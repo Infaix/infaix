@@ -3,26 +3,73 @@ import Link from "next/link";
 import ScrollReveal from "@/components/ScrollReveal";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import { REVIEW_MARKERS, markerById } from "@/lib/legal-content";
+import { REVIEW_MARKERS, markerById, markerKind, type MarkerKind } from "@/lib/legal-content";
 import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
 import { DECISION_GROUPS } from "@/lib/legal-decisions";
 
 /**
  * The checklist groups live in `lib/legal-decisions` so they can be tested in
- * Node. `tests/legal-content.test.ts` asserts they partition the marker set.
+ * Node. `tests/legal-content.test.ts` asserts they partition the marker set,
+ * and that every marker carries one of the classifications below.
  */
 
 export const metadata: Metadata = {
   title: "Legal & trust",
   description:
-    "INFAIX Core's privacy policy, terms of use and cookie policy, plus the decisions still awaiting owner and legal review.",
+    "INFAIX Core's privacy policy, terms of use and cookie policy, the controls you actually have, and the decisions still awaiting owner, legal or product work.",
   openGraph: {
     title: "Legal & trust | INFAIX",
     description:
-      "INFAIX Core's privacy policy, terms of use and cookie policy, plus the decisions still awaiting owner and legal review.",
+      "INFAIX Core's privacy policy, terms of use and cookie policy, the controls you actually have, and the decisions still awaiting owner, legal or product work.",
     url: "https://infaix.com/legal",
   },
 };
+
+const KIND_ORDER: MarkerKind[] = [
+  "OWNER DECISION REQUIRED",
+  "LEGAL REVIEW REQUIRED",
+  "PRODUCT GAP",
+  "IMPLEMENTATION UNKNOWN",
+];
+
+const KIND_NOTES: Record<MarkerKind, string> = {
+  "OWNER DECISION REQUIRED": "Only INFAIX can settle these, usually with a business answer or counsel.",
+  "LEGAL REVIEW REQUIRED": "Drafting questions for a lawyer. The text is left open rather than guessed.",
+  "PRODUCT GAP": "A control the product does not have. Listed as a gap, never shipped as a control that does nothing.",
+  "IMPLEMENTATION UNKNOWN": "The code does not establish the fact either way, so no claim is made.",
+};
+
+const CONTROLS: { label: string; title: string; body: string; href: string; cta: string; gap?: boolean }[] = [
+  {
+    label: "Email preferences",
+    title: "Product news on or off",
+    body: "Start or stop INFAIX product news from your account. Turning it off stops marketing only. Verification, password reset and security notices are transactional and continue either way.",
+    href: "/account",
+    cta: "Manage in account",
+  },
+  {
+    label: "Account & data",
+    title: "Correct and secure",
+    body: "See what INFAIX holds about your account, change your display name, change your password, resend a verification email, and end your session. Changing your password signs out your other sessions.",
+    href: "/account",
+    cta: "Open account",
+  },
+  {
+    label: "Browser storage",
+    title: "One necessary cookie",
+    body: "Signing out clears INFAIX's only cookie immediately. There is nothing optional to manage, and no consent state is stored in your browser.",
+    href: "/legal/cookies",
+    cta: "Read the cookie policy",
+  },
+  {
+    label: "Not available yet",
+    title: "Deletion, export, privacy requests",
+    body: "INFAIX has no self-service account deletion, no data export, and no intake channel for privacy requests. These are recorded as product gaps rather than presented as working controls.",
+    href: "#decisions",
+    cta: "See the gaps",
+    gap: true,
+  },
+];
 
 export default function LegalIndexPage() {
   return (
@@ -41,8 +88,8 @@ export default function LegalIndexPage() {
               <h1>Legal</h1>
               <p>
                 What INFAIX Core actually does with your information, written from
-                the code rather than from a template — including the parts that
-                are still undecided.
+                the code rather than from a template — including the parts that are
+                still undecided.
               </p>
             </ScrollReveal>
           </div>
@@ -60,8 +107,8 @@ export default function LegalIndexPage() {
                   <h2>What applies to you.</h2>
                 </div>
                 <p className="band-note">
-                  These documents describe the service as it is built today, not as
-                  it is planned.
+                  These documents describe the service as it is built today, not as it
+                  is planned.
                 </p>
               </div>
             </ScrollReveal>
@@ -92,13 +139,49 @@ export default function LegalIndexPage() {
                   02
                 </span>
                 <div>
+                  <p className="instrument-label">Your controls</p>
+                  <h2>What you can actually do.</h2>
+                </div>
+                <p className="band-note">
+                  Every control here works today, inside INFAIX. Controls that do not
+                  exist are labelled as gaps rather than shipped as buttons.
+                </p>
+              </div>
+            </ScrollReveal>
+            <ul className="legal-index-list">
+              {CONTROLS.map((c) => (
+                <li key={c.title}>
+                  <ScrollReveal>
+                    <Link href={c.href} className={`legal-index-card${c.gap ? " is-gap" : ""}`}>
+                      <p className="instrument-label">{c.label}</p>
+                      <h3>{c.title}</h3>
+                      <p>{c.body}</p>
+                      <span className="project-card-action">
+                        {c.cta} <span aria-hidden="true">→</span>
+                      </span>
+                    </Link>
+                  </ScrollReveal>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="section-pad is-subpage">
+          <div className="container band">
+            <ScrollReveal>
+              <div className="band-head">
+                <span className="instrument-index" aria-hidden="true">
+                  03
+                </span>
+                <div>
                   <p className="instrument-label">How this is written</p>
                   <h2>Verified, or marked as undecided.</h2>
                 </div>
                 <p className="band-note">
                   Every factual claim in these documents maps to something in the
-                  codebase. Where a fact was missing, the text says so instead of
-                  filling the gap.
+                  codebase. Where a fact was missing, the text says so instead of filling
+                  the gap.
                 </p>
               </div>
             </ScrollReveal>
@@ -108,24 +191,25 @@ export default function LegalIndexPage() {
                   <p className="instrument-label">Verified</p>
                   <p>
                     Checked against the database schema, the Worker routes, and the
-                    behaviour the tests pin down. Storage, lifetimes and access rules
-                    are described as they actually are.
+                    behaviour the tests pin down. Storage, lifetimes and access rules are
+                    described as they actually are.
                   </p>
                 </div>
                 <div className="legal-explainer-item">
-                  <p className="instrument-label">Decision needed</p>
+                  <p className="instrument-label">Marked, not guessed</p>
                   <p>
-                    A question only the owner or counsel can answer — a retention
-                    period, a jurisdiction, a contact address. Each appears inline
-                    in the document and in the checklist below.
+                    Where a fact was missing, the document carries a marked item naming
+                    the question, and the collection below says who has to answer it. A
+                    gap is never smoothed over with plausible wording.
                   </p>
                 </div>
                 <div className="legal-explainer-item">
                   <p className="instrument-label">Kept true automatically</p>
                   <p>
                     The service-status table in the Terms is generated from the same
-                    registry that drives the product directory, so it cannot drift
-                    away from what is running.
+                    registry that drives the product directory, and the policy versions
+                    the signup form sends are the ones the server checks. Neither can
+                    drift away from what is running.
                   </p>
                 </div>
               </div>
@@ -138,17 +222,34 @@ export default function LegalIndexPage() {
             <ScrollReveal>
               <div className="band-head">
                 <span className="instrument-index" aria-hidden="true">
-                  03
+                  04
                 </span>
                 <div>
                   <p className="instrument-label">Outstanding</p>
-                  <h2>{REVIEW_MARKERS.length} decisions awaiting owner or legal review.</h2>
+                  <h2>{REVIEW_MARKERS.length} items awaiting owner, legal or product work.</h2>
                 </div>
                 <p className="band-note">
-                  Nothing in this list is a defect in the product. Each one is a
-                  judgement call that has been recorded rather than guessed at.
+                  Nothing in this list is a defect in the running product. Each one is a
+                  judgement or a missing feature that has been recorded rather than
+                  guessed at.
                 </p>
               </div>
+            </ScrollReveal>
+
+            <ScrollReveal>
+              <dl className="legal-kind-summary">
+                {KIND_ORDER.map((kind) => (
+                  <div key={kind} className="legal-kind" data-kind={kind}>
+                    <dt>{kind}</dt>
+                    <dd>
+                      <span className="legal-kind-count">
+                        {REVIEW_MARKERS.filter((m) => markerKind(m.id) === kind).length}
+                      </span>
+                      {KIND_NOTES[kind]}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </ScrollReveal>
 
             {DECISION_GROUPS.map((group, gi) => (
@@ -169,6 +270,9 @@ export default function LegalIndexPage() {
                         <li key={id} className="legal-decision">
                           <p className="legal-decision-topic">
                             {marker.topic}
+                            <span className="legal-decision-kind" data-kind={markerKind(marker.id)}>
+                              {markerKind(marker.id)}
+                            </span>
                             <span className="legal-decision-id">{marker.id}</span>
                           </p>
                           <p className="legal-decision-question">{marker.question}</p>

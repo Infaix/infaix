@@ -25,6 +25,60 @@ export interface ReviewMarker {
   current: string;
 }
 
+/**
+ * How each unresolved item is classified. The distinction matters because the
+ * four kinds are resolved in different places by different people:
+ *
+ * - OWNER DECISION REQUIRED  a business answer only INFAIX can give.
+ * - LEGAL REVIEW REQUIRED    a drafting question for counsel.
+ * - PRODUCT GAP              a control the product does not have yet.
+ * - IMPLEMENTATION UNKNOWN   the code does not establish the fact either way.
+ */
+export type MarkerKind = "OWNER DECISION REQUIRED" | "LEGAL REVIEW REQUIRED" | "PRODUCT GAP" | "IMPLEMENTATION UNKNOWN";
+
+export type MarkerId = (typeof REVIEW_MARKERS)[number]["id"];
+
+/**
+ * Exhaustive by construction. `REVIEW_MARKERS` is a `const` tuple, so `MarkerId`
+ * is the union of real ids rather than `string`; adding a marker without a
+ * classification here is therefore a compile error, not a runtime surprise.
+ * `tests/trust-surfaces.test.ts` asserts the same thing at runtime.
+ */
+export const MARKER_KINDS: Record<MarkerId, MarkerKind> = {
+  "legal-entity": "OWNER DECISION REQUIRED",
+  "privacy-contact": "OWNER DECISION REQUIRED",
+  regime: "LEGAL REVIEW REQUIRED",
+  "lawful-basis": "LEGAL REVIEW REQUIRED",
+  transfers: "IMPLEMENTATION UNKNOWN",
+  processors: "LEGAL REVIEW REQUIRED",
+  age: "OWNER DECISION REQUIRED",
+  "legal-acceptance-retention": "OWNER DECISION REQUIRED",
+  "retention-accounts": "OWNER DECISION REQUIRED",
+  "retention-audit": "OWNER DECISION REQUIRED",
+  "retention-tokens": "OWNER DECISION REQUIRED",
+  "retention-sessions": "OWNER DECISION REQUIRED",
+  "retention-newsletter": "OWNER DECISION REQUIRED",
+  "retention-conversations": "OWNER DECISION REQUIRED",
+  "retention-logs": "OWNER DECISION REQUIRED",
+  erasure: "PRODUCT GAP",
+  "data-export": "PRODUCT GAP",
+  "access-requests": "PRODUCT GAP",
+  "marketing-unsubscribe": "PRODUCT GAP",
+  "marketing-infrastructure": "OWNER DECISION REQUIRED",
+  "consent-architecture": "OWNER DECISION REQUIRED",
+  "terms-termination": "LEGAL REVIEW REQUIRED",
+  "terms-liability": "LEGAL REVIEW REQUIRED",
+  "terms-warranty": "LEGAL REVIEW REQUIRED",
+  "terms-ip": "LEGAL REVIEW REQUIRED",
+  "terms-trademarks": "LEGAL REVIEW REQUIRED",
+  "terms-availability": "LEGAL REVIEW REQUIRED",
+  "terms-governing-law": "OWNER DECISION REQUIRED",
+  "terms-acceptable-use": "LEGAL REVIEW REQUIRED",
+  "product-terms": "LEGAL REVIEW REQUIRED",
+  "shop-commerce-compliance": "LEGAL REVIEW REQUIRED",
+  "ai-output-notice": "LEGAL REVIEW REQUIRED",
+};
+
 export type LegalBlock =
   | { kind: "p"; text: string }
   | { kind: "h3"; text: string }
@@ -61,7 +115,7 @@ export interface LegalDocument {
  * can be made without re-reading the code. Nothing in this list is a defect:
  * it is work that belongs to the owner and to counsel, not to the frontend.
  */
-export const REVIEW_MARKERS: ReviewMarker[] = [
+export const REVIEW_MARKERS = [
   {
     id: "legal-entity",
     topic: "Identity of the entity",
@@ -99,10 +153,28 @@ export const REVIEW_MARKERS: ReviewMarker[] = [
     current: "Four services are reachable from the code: Cloudflare (hosting, database, edge), Resend (transactional email), an AI gateway behind AI_GATEWAY_URL, and the sibling Chat and Study products reached by signed handoff. Contract status is not recorded here.",
   },
   {
-    id: "terms-acceptance-record",
-    topic: "Recording acceptance",
-    question: "Should acceptance of these terms be stored server-side, and if so as a version, a timestamp, or both?",
-    current: "Signup requires an unticked acknowledgement that names the exact document versions, and refuses to submit without it. Nothing is written to the account row: the registration contract has no field for it, and the audit log records account creation rather than which text was accepted.",
+    id: "legal-acceptance-retention",
+    topic: "Retention: legal acceptance records",
+    question: "How long are legal acceptance records kept, and does deletion of an account erase the record of what was accepted?",
+    current: "Registration writes one row per acknowledgement with the terms version, privacy version, source and timestamp. The table has a cascade from the account, so deleting the user row would remove it, but no deletion path exists yet and no retention rule is defined.",
+  },
+  {
+    id: "data-export",
+    topic: "Data export",
+    question: "Should people be able to download a copy of the data INFAIX holds about them?",
+    current: "There is no export control. The account page shows profile fields inline, but that is a summary, not a portable copy of the record.",
+  },
+  {
+    id: "shop-commerce-compliance",
+    topic: "Commerce compliance, before Shop launches",
+    question: "Before INFAIX Shop takes a first order, which consumer, tax and payment obligations will it meet?",
+    current: "Shop is planned and not operating, so no refund, shipping, payment or subscription terms have been written. Pricing and consumer guarantees, Australian Consumer Law handling, shipping, taxes, payment processor terms, PCI scope and the business contact details all remain undefined by design.",
+  },
+  {
+    id: "ai-output-notice",
+    topic: "AI output notice",
+    question: "Does INFAIX AI need a product-specific notice about generated output, and what must it say?",
+    current: "INFAIX AI is live but restricted. The service is proxied to a separate model gateway, and the terms state no position on generated output accuracy, fitness or downstream reliance. A generic disclaimer would not settle it.",
   },
   {
     id: "age",
@@ -236,7 +308,7 @@ export const REVIEW_MARKERS: ReviewMarker[] = [
     question: "Will Study, Atlas and Shop carry their own terms when they launch, or do these terms cover them?",
     current: "All three are planned and not operating. INFAIX Shop in particular is not a working service and nothing on this site invites anyone to buy from it.",
   },
-];
+] as const satisfies readonly ReviewMarker[];
 
 /**
  * Inline link syntax understood by the renderer: `[[label|/path]]` for a
@@ -264,7 +336,12 @@ export function splitLegalText(text: string): (string | LegalLinkToken)[] {
   return out;
 }
 
-export function markerById(id: string): ReviewMarker | undefined {
+/** The single entry point for a marker's classification. */
+export function markerKind(id: string): MarkerKind {
+  return MARKER_KINDS[id as MarkerId];
+}
+
+export function markerById(id: string): (typeof REVIEW_MARKERS)[number] | undefined {
   return REVIEW_MARKERS.find((m) => m.id === id);
 }
 

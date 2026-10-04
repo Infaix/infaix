@@ -104,6 +104,23 @@ export const privacyPolicy: LegalDocument = {
         },
         {
           kind: "h3",
+          text: "Legal acceptance records",
+        },
+        {
+          kind: "p",
+          text: "Creating an account requires you to accept the current Terms of Use and acknowledge the current Privacy Policy. INFAIX records that fact, and only that fact: which account accepted it, which version of each document was current, that the source was registration, and when it happened.",
+        },
+        {
+          kind: "fact",
+          title: "What the acceptance record deliberately does not hold",
+          text: "It stores no IP address, no user agent and no device information, and it is not joined to your newsletter subscription. Those two things are kept apart on purpose.",
+        },
+        {
+          kind: "p",
+          text: "A request that does not carry the current versions is refused and no account is created, so an acceptance record can only ever describe text that was actually current.",
+        },
+        {
+          kind: "h3",
           text: "Session information",
         },
         {
@@ -207,6 +224,7 @@ export const privacyPolicy: LegalDocument = {
           head: ["Purpose", "Data used"],
           rows: [
             ["Let you create and sign in to an account", "Email address, password hash, display name, verification state, session records"],
+            ["Record the Terms you accepted and the Privacy Policy you acknowledged", "Account id, Terms version, Privacy version, source, acceptance timestamp"],
             ["Confirm that you control your email address", "Email address, single-use verification token, confirmation timestamp"],
             ["Keep the account secure", "Audit events, network address, session records, password-change and reset events"],
             ["Send transactional messages", "Email address and the single-use link token inside the message"],
@@ -341,6 +359,10 @@ export const privacyPolicy: LegalDocument = {
         },
         {
           kind: "review",
+          marker: "legal-acceptance-retention",
+        },
+        {
+          kind: "review",
           marker: "retention-accounts",
         },
         {
@@ -399,6 +421,10 @@ export const privacyPolicy: LegalDocument = {
         {
           kind: "review",
           marker: "erasure",
+        },
+        {
+          kind: "review",
+          marker: "data-export",
         },
         {
           kind: "review",

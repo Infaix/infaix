@@ -1,11 +1,11 @@
 /**
- * The outstanding-decisions checklist, grouped so a reviewer can work through
- * it in one sitting.
+ * The outstanding-items checklist, grouped so a reviewer can work through it in
+ * one sitting.
  *
- * Lives outside the page component so it can be tested in Node without
- * pulling in React or the navigation. `tests/legal-content.test.ts` asserts
- * that these groups partition the marker set exactly, so a decision added
- * later cannot quietly fail to appear in the checklist.
+ * Lives outside the page component so it can be tested in Node without pulling
+ * in React or the navigation. `tests/legal-content.test.ts` asserts that these
+ * groups partition the marker set exactly, so an item added later cannot
+ * quietly fail to appear in the checklist.
  */
 
 export interface DecisionGroup {
@@ -24,6 +24,7 @@ export const DECISION_GROUPS: readonly DecisionGroup[] = [
     title: "How long data is kept",
     note: "The system has no deletion jobs today. These are the periods that still need choosing.",
     ids: [
+      "legal-acceptance-retention",
       "retention-accounts",
       "retention-audit",
       "retention-tokens",
@@ -34,16 +35,20 @@ export const DECISION_GROUPS: readonly DecisionGroup[] = [
     ],
   },
   {
-    title: "Rights, requests and consent",
-    note: "What people can do for themselves today, and what still needs a channel and a deadline.",
-    ids: ["erasure", "access-requests", "marketing-unsubscribe", "marketing-infrastructure", "consent-architecture"],
+    title: "Controls that do not exist yet",
+    note: "Product gaps. They are listed as gaps rather than shipped as controls that do nothing.",
+    ids: ["erasure", "data-export", "access-requests", "marketing-unsubscribe"],
+  },
+  {
+    title: "Communications and consent",
+    note: "What people can do for themselves today, and what still needs a channel or a decision.",
+    ids: ["marketing-infrastructure", "consent-architecture"],
   },
   {
     title: "Terms that need drafting decisions",
     note: "Provisions that cannot be written honestly without a commercial or legal choice.",
     ids: [
       "terms-termination",
-      "terms-acceptance-record",
       "terms-liability",
       "terms-warranty",
       "terms-ip",
@@ -51,7 +56,9 @@ export const DECISION_GROUPS: readonly DecisionGroup[] = [
       "terms-availability",
       "terms-governing-law",
       "terms-acceptable-use",
+      "ai-output-notice",
       "product-terms",
+      "shop-commerce-compliance",
     ],
   },
 ];

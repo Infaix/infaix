@@ -99,6 +99,7 @@ export const termsOfUse: LegalDocument = {
           kind: "ul",
           items: [
             "You give accurate information and keep it accurate. Your email address must be one you actually control, and you must confirm it before you can sign in.",
+            "You accept these terms and acknowledge the privacy policy. That acknowledgement is recorded with your account: which version of each document you accepted, that it happened at registration, and when. It is kept separately from your newsletter subscription, and it records no IP address or device information.",
             "You choose a password of at least 12 characters and you are responsible for keeping it. INFAIX stores only a one-way hash and cannot recover it for you.",
             "You are at least the minimum age set out below to hold an account.",
             "You do not share your account credentials, and you tell INFAIX if you think someone else has used them.",
@@ -119,7 +120,7 @@ export const termsOfUse: LegalDocument = {
         },
         {
           kind: "review",
-          marker: "terms-acceptance-record",
+          marker: "legal-acceptance-retention",
         },
         {
           kind: "review",
@@ -183,7 +184,15 @@ export const termsOfUse: LegalDocument = {
         },
         {
           kind: "review",
+          marker: "ai-output-notice",
+        },
+        {
+          kind: "review",
           marker: "product-terms",
+        },
+        {
+          kind: "review",
+          marker: "shop-commerce-compliance",
         },
         {
           kind: "review",

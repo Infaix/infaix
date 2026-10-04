@@ -1,6 +1,6 @@
 import Link from "next/link";
 import ScrollReveal from "@/components/ScrollReveal";
-import { markerById, splitLegalText, type LegalBlock, type LegalDocument } from "@/lib/legal-content";
+import { markerById, markerKind, splitLegalText, type LegalBlock, type LegalDocument } from "@/lib/legal-content";
 
 /**
  * Renders one legal document from the data model in `lib/legal-content`.
@@ -121,10 +121,15 @@ function Block({ block }: { block: LegalBlock }) {
       const marker = markerById(block.marker);
       if (!marker) return null;
       return (
-        <aside className="legal-review" id={`review-${marker.id}`} aria-label={`Decision needed: ${marker.topic}`}>
+        <aside
+          className="legal-review"
+          id={`review-${marker.id}`}
+          data-kind={markerKind(marker.id)}
+          aria-label={`${markerKind(marker.id)}: ${marker.topic}`}
+        >
           <p className="legal-review-tag">
             <span className="legal-review-dot" aria-hidden="true" />
-            Decision needed
+            {markerKind(marker.id)}
           </p>
           <p className="legal-review-topic">{marker.topic}</p>
           <p className="legal-review-question">
