@@ -102,8 +102,8 @@ Token properties: 32 random bytes (base64url, 43 chars), SHA-256 at rest,
 | Endpoint | Behavior |
 |---|---|
 | `POST /api/auth/request-password-reset` `{ email }` | Normally neutral `200 { ok: true }`, subject to rate-limit/provider errors. Existing non-disabled accounts: prior PENDING tokens expired, new 1 h token mailed, audit `PASSWORD_RESET_REQUESTED`. |
-| `POST /api/auth/reset-password` `{ token, newPassword }` | `200` on success: atomic claim, password re-hash, **all** sessions revoked, sibling PENDING tokens expired, audit `PASSWORD_RESET_COMPLETED`, password-changed mail. Unknown or disabled → `410 RESET_INVALID` (no resurrection). Expired → `410 RESET_EXPIRED`. Already used → `410 RESET_USED`. |
-| `POST /api/auth/change-password` (session) | Requires current password; revokes all *other* sessions; audit `PASSWORD_CHANGED`. |
+| `POST /api/auth/reset-password` `{ token, newPassword }` | `200` on success: atomic claim, password re-hash, **all** sessions revoked, sibling PENDING tokens expired, audit `PASSWORD_RESET_COMPLETED`, then `{ passwordChanged: true, notificationDelivered }`. Unknown or disabled → `410 RESET_INVALID` (no resurrection). Expired → `410 RESET_EXPIRED`. Already used → `410 RESET_USED`. |
+| `POST /api/auth/change-password` (session) | Requires current password; revokes all *other* sessions; audit `PASSWORD_CHANGED`. Response `{ passwordChanged: true, notificationDelivered }` after the password is saved. A failed security email does not undo the change and is not described as sent. |
 
 Token properties mirror verification (1 h expiry). Rate limits: 5/hr per IP +
 5/hr per address (`RL_RESET_*`, `RL_RESET_EMAIL_*`). Response-body equality

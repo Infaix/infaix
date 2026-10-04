@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, rateLimitMessage, type PublicUser } from "@/lib/auth-client";
 import { NEWSLETTER_CONSENT_LABEL, NEWSLETTER_POLICY_VERSION } from "@/lib/newsletter-consent";
-
-type NewsletterStatus = "SUBSCRIBED" | "UNSUBSCRIBED" | "PENDING_CONFIRMATION" | null;
+import { settlePreference, type NewsletterPreference, type NewsletterStatus } from "@/lib/newsletter-preference";
 
 function roleLabel(role: PublicUser["role"]): string {
   if (role === "OWNER") return "Owner";
@@ -37,7 +36,7 @@ export default function AccountDashboard() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [msg, setMsg] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [operation, setOperation] = useState<"name" | "password" | "verify" | "news" | null>(null);
-  const [newsletter, setNewsletter] = useState<NewsletterStatus>(null);
+  const [preference, setPreference] = useState<NewsletterPreference>({ state: "loading" });
   const [optIn, setOptIn] = useState(false);
   const busy = operation !== null;
 
@@ -55,7 +54,7 @@ export default function AccountDashboard() {
       }
       setUser(me.data.user);
       setName(me.data.user.display_name);
-      if (pref.ok && pref.data) setNewsletter(pref.data.status);
+      setPreference((previous) => settlePreference(previous, pref.ok, pref.data?.status));
     });
     return () => {
       live = false;
@@ -86,7 +85,7 @@ export default function AccountDashboard() {
       return;
     }
     setOperation("password");
-    const res = await api<{ ok: boolean }>("/api/auth/change-password", { currentPassword, newPassword });
+    const res = await api<{ ok: boolean; passwordChanged?: boolean; notificationDelivered?: boolean }>("/api/auth/change-password", { currentPassword, newPassword });
     setOperation(null);
     if (!res.ok) {
       setMsg({ kind: "error", text: rateLimitMessage(res) ?? res.message ?? "Could not change password." });
@@ -95,7 +94,13 @@ export default function AccountDashboard() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    setMsg({ kind: "success", text: "Password changed. Other sessions were signed out. A confirmation email was sent." });
+    const delivered = res.data?.notificationDelivered === true;
+    setMsg({
+      kind: "success",
+      text: delivered
+        ? "Password changed. Other sessions were signed out. A security email was sent."
+        : "Password changed. Other sessions were signed out. The security email could not be sent.",
+    });
   }
 
   async function resendVerification() {
@@ -117,9 +122,10 @@ export default function AccountDashboard() {
 
   async function saveNewsletter(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || busy) return;
+    if (!user || busy || preference.state !== "ready") return;
     setMsg(null);
     setOperation("news");
+    const newsletter = preference.status;
     if (optIn && newsletter !== "SUBSCRIBED" && newsletter !== "PENDING_CONFIRMATION") {
       const res = await api("/api/newsletter/subscribe", {
         email: user.email,
@@ -129,10 +135,10 @@ export default function AccountDashboard() {
       });
       setOperation(null);
       if (!res.ok) {
-        setMsg({ kind: "error", text: rateLimitMessage(res) ?? "Newsletter preference was not saved. You are not subscribed." });
+        setMsg({ kind: "error", text: rateLimitMessage(res) ?? "Newsletter preference could not be saved. Try again." });
         return;
       }
-      setNewsletter("PENDING_CONFIRMATION");
+      setPreference({ state: "ready", status: "PENDING_CONFIRMATION" });
       setOptIn(false);
       setMsg({ kind: "success", text: "Preference saved. You are not subscribed until that request is confirmed." });
       return;
@@ -143,8 +149,19 @@ export default function AccountDashboard() {
       setMsg({ kind: "error", text: rateLimitMessage(res) ?? "Could not update email preferences." });
       return;
     }
-    setNewsletter(res.data?.status ?? null);
+    setPreference({ state: "ready", status: res.data?.status ?? null });
     setMsg({ kind: "success", text: "You will not receive INFAIX product news." });
+  }
+
+  async function retryPreferences() {
+    if (busy) return;
+    setOperation("news");
+    const pref = await api<{ status: NewsletterStatus }>("/api/newsletter/me");
+    setOperation(null);
+    if (!pref.ok && preference.state === "ready") {
+      setMsg({ kind: "error", text: "Could not refresh email preferences. The status below is the last one loaded." });
+    }
+    setPreference((previous) => settlePreference(previous, pref.ok, pref.data?.status));
   }
 
   async function logout() {
@@ -300,31 +317,48 @@ export default function AccountDashboard() {
 
       <hr className="auth-divider" />
       <h2 id="email-preferences" className="auth-heading">Email preferences</h2>
-      <p className="auth-note">
-        Current newsletter status: {newsletterLabel(newsletter)}. Product news is separate from account mail such as verification and password notices.
-      </p>
-      {newsletter === "PENDING_CONFIRMATION" && (
-        <p className="auth-note" role="status">
-          A newsletter request is waiting for confirmation. You are not subscribed, and no product news is being sent.
-        </p>
+      {preference.state === "loading" && (
+        <p className="auth-note" role="status">Loading email preferences…</p>
       )}
-      <form onSubmit={saveNewsletter}>
-        {newsletter !== "SUBSCRIBED" && newsletter !== "PENDING_CONFIRMATION" && (
-          <label className="auth-check" htmlFor="acct-news">
-            <input
-              id="acct-news"
-              type="checkbox"
-              checked={optIn}
-              onChange={(e) => setOptIn(e.target.checked)}
-              disabled={busy}
-            />
-            <span>{NEWSLETTER_CONSENT_LABEL}</span>
-          </label>
-        )}
-        <button type="submit" className="ai-send auth-submit" disabled={busy || (newsletter !== "SUBSCRIBED" && newsletter !== "PENDING_CONFIRMATION" && !optIn)} aria-busy={operation === "news"}>
-          {operation === "news" ? "Saving…" : newsletter === "SUBSCRIBED" || newsletter === "PENDING_CONFIRMATION" ? "Stop product news" : "Save email preference"}
-        </button>
-      </form>
+      {preference.state === "unavailable" && (
+        <div className="auth-error" role="alert">
+          Email preferences could not be loaded. Nothing was changed.
+          <div className="auth-links">
+            <button type="button" className="btn-quiet" onClick={retryPreferences} disabled={busy}>
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
+      {preference.state === "ready" && (
+        <>
+          <p className="auth-note">
+            Current newsletter status: {newsletterLabel(preference.status)}. Product news is separate from account mail such as verification and password notices.
+          </p>
+          {preference.status === "PENDING_CONFIRMATION" && (
+            <p className="auth-note" role="status">
+              A newsletter request is waiting for confirmation. You are not subscribed, and no product news is being sent.
+            </p>
+          )}
+          <form onSubmit={saveNewsletter}>
+            {preference.status !== "SUBSCRIBED" && preference.status !== "PENDING_CONFIRMATION" && (
+              <label className="auth-check" htmlFor="acct-news">
+                <input
+                  id="acct-news"
+                  type="checkbox"
+                  checked={optIn}
+                  onChange={(e) => setOptIn(e.target.checked)}
+                  disabled={busy}
+                />
+                <span>{NEWSLETTER_CONSENT_LABEL}</span>
+              </label>
+            )}
+            <button type="submit" className="ai-send auth-submit" disabled={busy || (preference.status !== "SUBSCRIBED" && preference.status !== "PENDING_CONFIRMATION" && !optIn)} aria-busy={operation === "news"}>
+              {operation === "news" ? "Saving…" : preference.status === "SUBSCRIBED" || preference.status === "PENDING_CONFIRMATION" ? "Stop product news" : "Save email preference"}
+            </button>
+          </form>
+        </>
+      )}
 
       <hr className="auth-divider" />
       <h2 className="auth-heading">Privacy &amp; documents</h2>

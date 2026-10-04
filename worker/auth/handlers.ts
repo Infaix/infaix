@@ -56,15 +56,18 @@ const MAX_JSON_BYTES = 32 * 1024;
 const err = (code: string, message: string, status: number): HandlerResult =>
   json({ error: { code, message } } satisfies ApiError, status);
 
-/** Security notices must not undo a completed password or verification change. */
-async function notifyQuietly(task: Promise<void>, label: string): Promise<void> {
+/**
+ * Security notices must not undo a completed password or verification change.
+ * Returns whether delivery succeeded. The error text stays in the log name only,
+ * never in the API response.
+ */
+async function deliverNotice(task: Promise<void>, label: string): Promise<boolean> {
   try {
     await task;
+    return true;
   } catch (error) {
-    console.error(`${label} failed`, {
-      name: error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    console.error(`${label} failed`, { name: error instanceof Error ? error.name : "Error" });
+    return false;
   }
 }
 
@@ -382,11 +385,11 @@ export async function handleChangePassword(ctx: HandlerContext, req: Request): P
   await ctx.store.updateUser(fresh.id, { password_hash: await hashPassword(next, ctx.env.PBKDF2_ITERATIONS), updated_at: now });
   await ctx.store.deleteUserSessionsExcept(fresh.id, authed.sessionId);
   await audit(ctx.store, "PASSWORD_CHANGED", { actor: fresh.id, target: fresh.id, ip: ctx.ip, now });
-  await notifyQuietly(
+  const notificationDelivered = await deliverNotice(
     ctx.mailer.sendPasswordChanged(fresh.email, flowLink(ctx.origin, "/forgot-password"), now),
     "password-changed-mail"
   );
-  return json({ ok: true });
+  return json({ ok: true, passwordChanged: true, notificationDelivered });
 }
 
 // ---------------------------------------------------------------- profile
@@ -483,11 +486,11 @@ export async function handleResetPassword(ctx: HandlerContext, req: Request): Pr
   // be live per account, so a leaked older link dies with the successful one.
   await ctx.store.expireUserResets(user.id);
   await audit(ctx.store, "PASSWORD_RESET_COMPLETED", { target: user.id, ip: ctx.ip, now });
-  await notifyQuietly(
+  const notificationDelivered = await deliverNotice(
     ctx.mailer.sendPasswordChanged(user.email, flowLink(ctx.origin, "/forgot-password"), now),
     "password-changed-mail"
   );
-  return json({ ok: true });
+  return json({ ok: true, passwordChanged: true, notificationDelivered });
 }
 
 // ---------------------------------------------------------------- email verification
@@ -578,7 +581,7 @@ export async function handleVerifyEmail(ctx: HandlerContext, req: Request): Prom
   // outcome ever stands; stale links cannot be replayed or probed later.
   await ctx.store.expireUserVerifications(user.id);
   await audit(ctx.store, "EMAIL_VERIFIED", { target: user.id, ip: ctx.ip, now });
-  await notifyQuietly(ctx.mailer.sendWelcome(user.email, flowLink(ctx.origin, "/login"), now), "welcome-mail");
+  await deliverNotice(ctx.mailer.sendWelcome(user.email, flowLink(ctx.origin, "/login"), now), "welcome-mail");
   return json({ ok: true });
 }
 

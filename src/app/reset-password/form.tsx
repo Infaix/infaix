@@ -16,6 +16,7 @@ export default function ResetForm() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [noticeSent, setNoticeSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -31,9 +32,10 @@ export default function ResetForm() {
       return;
     }
     setBusy(true);
-    const res = await api("/api/auth/reset-password", { token: token.trim(), newPassword });
+    const res = await api<{ passwordChanged?: boolean; notificationDelivered?: boolean }>("/api/auth/reset-password", { token: token.trim(), newPassword });
     setBusy(false);
     if (res.ok) {
+      setNoticeSent(res.data?.notificationDelivered === true);
       setDone(true);
       return;
     }
@@ -60,7 +62,9 @@ export default function ResetForm() {
     return (
       <div>
         <div className="auth-success" role="status" tabIndex={-1} ref={alertRef}>
-          Password updated. Every session was signed out. Log in with the new password.
+          {noticeSent
+            ? "Password updated. Every session was signed out. A security email was sent. Log in with the new password."
+            : "Password updated. Every session was signed out. The security email could not be sent. Log in with the new password."}
         </div>
         <div className="auth-links">
           <Link href="/login">Log in</Link>
