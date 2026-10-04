@@ -90,7 +90,7 @@ describe("public registration (no invitation required)", () => {
       w.ctx,
       post("/api/auth/register", { ...GOOD, displayName: "A".repeat(40_000) })
     );
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(413);
     expect(await w.store.getUserByEmail("ada@infaix.com")).toBeNull();
   });
 

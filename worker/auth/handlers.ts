@@ -4,6 +4,7 @@
 // audit. Error messages never reveal account existence or secrets.
 import { NEWSLETTER_POLICY_VERSION, NEWSLETTER_SOURCES } from "../../src/lib/newsletter-consent";
 import { audit } from "./audit";
+import { AuthBodyError, readAuthJson } from "./body";
 import { checkRequestOrigin } from "./cors";
 import { hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
 import { acceptedCurrentLegal, CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION, LEGAL_ACCEPTANCE_SOURCE } from "./legal";
@@ -50,8 +51,8 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
   headers: { "content-type": "application/json; charset=utf-8", ...headers },
 });
 
-/** Maximum accepted auth request body (characters; payloads are tiny). */
-const MAX_JSON_BYTES = 32 * 1024;
+/** Existing newsletter contract; separate from the byte-bounded auth reader. */
+const MAX_NEWSLETTER_JSON_CHARACTERS = 32 * 1024;
 
 const err = (code: string, message: string, status: number): HandlerResult =>
   json({ error: { code, message } } satisfies ApiError, status);
@@ -115,17 +116,28 @@ function deadReset(
 const DUMMY_HASH =
   "pbkdf2-sha256$210000$u3V4bXl6c3V4bXl6c3V4bXl6c3U$u3V4bXl6c3V4bXl6c3V4bXl6c3V4bXl6c3V4bXl6c3U";
 
-async function readJson(req: Request): Promise<Record<string, unknown> | null> {
+async function readNewsletterJson(req: Request): Promise<Record<string, unknown> | null> {
   try {
     const text = await req.text();
-    // Bounded body: auth payloads are tiny (email + password + names). An
-    // unbounded read lets a caller force the isolate to buffer arbitrarily
-    // large request bodies before validation runs.
-    if (!text || text.length > MAX_JSON_BYTES) return null;
+    if (!text || text.length > MAX_NEWSLETTER_JSON_CHARACTERS) return null;
     const v: unknown = JSON.parse(text);
     return isRecord(v) ? v : null;
   } catch {
     return null;
+  }
+}
+
+async function readAuthBody(req: Request): Promise<
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; result: HandlerResult }
+> {
+  try {
+    return { ok: true, body: await readAuthJson(req) };
+  } catch (error) {
+    if (error instanceof AuthBodyError) {
+      return { ok: false, result: err(error.code, error.message, error.status) };
+    }
+    throw error;
   }
 }
 
@@ -162,7 +174,9 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
   if (!gate.allowed) return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
   diagnostic("rate-limit-ok");
 
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   // Invitation token is OPTIONAL (public registration). Present-but-malformed
   // fails closed so invite callers get an explicit error, never a silent
   // base account. Absent/blank means the public path.
@@ -288,7 +302,9 @@ export async function handleLogin(ctx: HandlerContext, req: Request): Promise<Ha
     return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(ipGate.retryAfterSec) });
   }
 
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const email = body ? normalizeEmail(body.email) : null;
   const password = typeof body?.password === "string" ? body.password : null;
   if (!email || !password) return err("INVALID_CREDENTIALS", "Invalid email or password.", 401);
@@ -370,7 +386,9 @@ export async function handleChangePassword(ctx: HandlerContext, req: Request): P
     return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
   }
 
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const current = typeof body?.currentPassword === "string" ? body.currentPassword : null;
   const next = typeof body?.newPassword === "string" ? body.newPassword : null;
   const pw = checkPassword(next);
@@ -401,7 +419,9 @@ export async function handleUpdateProfile(ctx: HandlerContext, req: Request): Pr
     req.headers.get("cookie")
   );
   if (!authed) return err("UNAUTHENTICATED", "Not signed in.", 401);
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const displayName = body ? checkDisplayName(body.displayName) : null;
   if (!displayName) return err("INVALID_INPUT", "Enter a valid display name (1-60 characters).", 400);
   const now = ctx.now();
@@ -420,7 +440,9 @@ export async function handleRequestPasswordReset(ctx: HandlerContext, req: Reque
   if (!gate.allowed) {
     return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
   }
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const email = body ? normalizeEmail(body.email) : null;
   // Neutral response in all cases — never reveal whether the email exists.
   if (!email) return json({ ok: true });
@@ -464,7 +486,9 @@ export async function handleResetPassword(ctx: HandlerContext, req: Request): Pr
   if (!gate.allowed) {
     return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
   }
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const token = body ? checkToken(body.token) : null;
   const next = body && typeof body.newPassword === "string" ? body.newPassword : null;
   const pw = checkPassword(next);
@@ -506,7 +530,9 @@ export async function handleRequestVerification(ctx: HandlerContext, req: Reques
     return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
   }
   diagnostic("rate-limit-ok");
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const email = body ? normalizeEmail(body.email) : null;
   if (!email) return json({ ok: true });
   // Per-address throttle behind the per-IP gate (same reasoning as reset:
@@ -564,7 +590,9 @@ export async function handleVerifyEmail(ctx: HandlerContext, req: Request): Prom
   if (!gate.allowed) {
     return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
   }
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const token = body ? checkToken(body.token) : null;
   if (!token) return err("INVALID_INPUT", "This verification link is not valid.", 400);
   await ctx.store.expireVerifications(ctx.now());
@@ -594,7 +622,7 @@ export async function handleNewsletterSubscribe(ctx: HandlerContext, req: Reques
   if (!gate.allowed) {
     return json({ error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later." } }, 429, { "retry-after": String(gate.retryAfterSec) });
   }
-  const body = await readJson(req);
+  const body = await readNewsletterJson(req);
   const email = body ? normalizeEmail(body.email) : null;
   const source = typeof body?.source === "string" ? body.source : "";
   const policyVersion = typeof body?.policyVersion === "string" ? body.policyVersion : "";
@@ -693,7 +721,9 @@ export async function handleCreateInvite(ctx: HandlerContext, req: Request): Pro
   const auth = await adminAuth(ctx, req);
   if (!auth.ok) return auth.result;
 
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const intendedEmail = body?.intendedEmail !== undefined ? normalizeEmail(body.intendedEmail) : undefined;
   if (body?.intendedEmail !== undefined && intendedEmail === undefined) {
     return err("INVALID_INPUT", "Enter a valid email address or omit the field.", 400);
@@ -876,7 +906,9 @@ export async function handleSetAiAccess(ctx: HandlerContext, req: Request, id: s
   if (limited) return limited;
   if (!/^usr_[0-9a-f]{24}$/.test(id)) return err("NOT_FOUND", "User not found.", 404);
   // Strict schema: exactly { enabled: boolean } — unknown fields rejected.
-  const body = await readJson(req);
+  const parsedBody = await readAuthBody(req);
+  if (!parsedBody.ok) return parsedBody.result;
+  const body = parsedBody.body;
   const keys = body ? Object.keys(body) : [];
   if (!body || keys.length !== 1 || keys[0] !== "enabled" || typeof body.enabled !== "boolean") {
     return err("INVALID_INPUT", "Request must be exactly { enabled: boolean }.", 400);
