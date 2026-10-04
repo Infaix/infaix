@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, rateLimitMessage } from "@/lib/auth-client";
+import { verificationAttempt } from "@/lib/verification-attempt";
 
 type Phase =
   | { kind: "pending" }
@@ -35,6 +36,7 @@ export default function Verifier() {
   const newsletterMissed = params.get("newsletter") === "0";
   const pendingEmail = params.get("email") ?? "";
   const urlToken = params.get("token") ?? "";
+  const startedToken = useRef<string | null>(null);
   const alertRef = useRef<HTMLDivElement>(null);
   const [token, setToken] = useState(urlToken);
   const [phase, setPhase] = useState<Phase>(urlToken ? { kind: "busy" } : { kind: "pending" });
@@ -48,17 +50,13 @@ export default function Verifier() {
   }, [phase]);
 
   useEffect(() => {
-    const t = params.get("token");
-    if (!t) return;
-    let live = true;
-    api("/api/auth/verify-email", { token: t }).then((res) => {
-      if (!live) return;
+    const next = verificationAttempt(urlToken || null, startedToken.current);
+    if (!next) return;
+    startedToken.current = next;
+    api("/api/auth/verify-email", { token: next }).then((res) => {
       setPhase(res.ok ? { kind: "verified" } : phaseFor(res.code, res.message, res.retryAfter));
     });
-    return () => {
-      live = false;
-    };
-  }, [params]);
+  }, [urlToken]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
