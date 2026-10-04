@@ -28,6 +28,11 @@ not a byte limit or a bound on memory consumed while reading the body.
 | `password` | yes | Policy: 12–128 chars, ≥ 3 of 4 classes |
 | `displayName` | yes | 1–60 chars, control chars rejected |
 | `token` | no | Legacy operator-invite token (see §3) |
+| `legal.accepted` | yes | Boolean `true` |
+| `legal.termsVersion` | yes | Must equal the server's current Terms version |
+| `legal.privacyVersion` | yes | Must equal the server's current Privacy version |
+
+Missing, false, or stale acknowledgement is `400 LEGAL_ACK_REQUIRED` and creates no account. A valid request writes the user and the acceptance together in one storage transaction (`D1.batch`). If that acceptance write fails, including because `legal_acceptances` is missing, no account is left behind. The stored row uses the server versions and `source = registration`. It does not create a newsletter subscription. Apply `0005_legal_acceptance.sql` before enabling this registration path.
 
 `role`, `ai_access`, `status`, `email_verified` in the body are **ignored** —
 privilege is never read from client input (tested).

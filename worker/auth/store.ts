@@ -4,8 +4,10 @@ import type {
   AuditEvent,
   ConversationRow,
   D1Like,
+  D1PreparedLike,
   InvitationRow,
   MessageRow,
+  LegalAcceptanceRow,
   NewsletterSubscriptionRow,
   ProductGrantRow,
   ResetRow,
@@ -33,6 +35,11 @@ export interface Store {
   getUserById(id: string): Promise<UserRow | null>;
   getUserByEmail(email: string): Promise<UserRow | null>;
   insertUser(u: UserRow): Promise<void>;
+  /**
+   * Account, required acknowledgement, initial verification and optional
+   * invitation claim. A failure commits none of the registration writes.
+   */
+  registerAccount(user: UserRow, acceptance: LegalAcceptanceRow, verification: VerificationRow, invitation?: InvitationRow): Promise<void>;
   updateUser(id: string, patch: UserUpdate): Promise<boolean>;
   listUsers(limit: number): Promise<UserRow[]>;
   setAiAccess(id: string, value: number, now: number): Promise<boolean>;
@@ -67,6 +74,8 @@ export interface Store {
   getNewsletterByEmail(email: string): Promise<NewsletterSubscriptionRow | null>;
   upsertNewsletter(sub: NewsletterSubscriptionRow): Promise<void>;
   setNewsletterStatus(email: string, status: NewsletterSubscriptionRow["status"], now: number): Promise<boolean>;
+  insertLegalAcceptance(row: LegalAcceptanceRow): Promise<void>;
+  listLegalAcceptancesForUser(userId: string): Promise<LegalAcceptanceRow[]>;
   // product/beta access grants (future invite-grant target; identity ≠ access)
   insertProductGrant(g: ProductGrantRow): Promise<void>;
   listProductGrantsForUser(userId: string): Promise<ProductGrantRow[]>;
@@ -111,13 +120,37 @@ export class D1Store implements Store {
   async getUserByEmail(email: string): Promise<UserRow | null> {
     return this.db.prepare("SELECT * FROM users WHERE email = ?").bind(email).first<UserRow>();
   }
-  async insertUser(u: UserRow): Promise<void> {
-    await this.db
+  private userInsert(u: UserRow): D1PreparedLike {
+    return this.db
       .prepare(
         "INSERT INTO users (id, email, password_hash, display_name, role, status, email_verified, ai_access, created_at, updated_at, last_login_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
-      .bind(u.id, u.email, u.password_hash, u.display_name, u.role, u.status, u.email_verified, u.ai_access ?? 0, u.created_at, u.updated_at, u.last_login_at)
-      .run();
+      .bind(u.id, u.email, u.password_hash, u.display_name, u.role, u.status, u.email_verified, u.ai_access ?? 0, u.created_at, u.updated_at, u.last_login_at);
+  }
+  private acceptanceInsert(row: LegalAcceptanceRow): D1PreparedLike {
+    return this.db
+      .prepare(
+        "INSERT INTO legal_acceptances (id, user_id, terms_version, privacy_version, source, accepted_at) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .bind(row.id, row.user_id, row.terms_version, row.privacy_version, row.source, row.accepted_at);
+  }
+  async insertUser(u: UserRow): Promise<void> {
+    await this.userInsert(u).run();
+  }
+  async registerAccount(user: UserRow, acceptance: LegalAcceptanceRow, verification: VerificationRow, invitation?: InvitationRow): Promise<void> {
+    if (acceptance.user_id !== user.id || verification.user_id !== user.id) throw new Error("Registration user mismatch");
+    // D1 batch rolls back every statement on failure. Recheck the invitation
+    // INSIDE the transaction: a lost claim makes role NULL, deliberately
+    // violating users.role NOT NULL before an account can be inserted.
+    // Unlike INSERT OR IGNORE this never swallows unexpected constraints.
+    const insertUser = invitation ? this.db.prepare(
+      "INSERT INTO users (id, email, password_hash, display_name, role, status, email_verified, ai_access, created_at, updated_at, last_login_at) VALUES (?, ?, ?, ?, CASE WHEN EXISTS (SELECT 1 FROM invitations WHERE id = ? AND status = 'PENDING' AND expires_at > ? AND (intended_email IS NULL OR intended_email = ?) AND role = ?) THEN ? ELSE NULL END, ?, ?, ?, ?, ?, ?)"
+    ).bind(user.id, user.email, user.password_hash, user.display_name, invitation.id, user.created_at, user.email, user.role, user.role, user.status, user.email_verified, user.ai_access, user.created_at, user.updated_at, user.last_login_at) : this.userInsert(user);
+    const statements = [insertUser, this.acceptanceInsert(acceptance), this.verificationInsert(verification)];
+    if (invitation) {
+      statements.push(this.db.prepare("UPDATE invitations SET status = 'USED', used_at = ?, used_by_user_id = ? WHERE id = ? AND status = 'PENDING'").bind(user.created_at, user.id, invitation.id));
+    }
+    await this.db.batch(statements);
   }
   async updateUser(id: string, patch: UserUpdate): Promise<boolean> {
     const keys = Object.keys(patch) as (keyof UserUpdate)[];
@@ -226,11 +259,13 @@ export class D1Store implements Store {
     await this.db.prepare("UPDATE password_resets SET status = 'EXPIRED' WHERE user_id = ? AND status = 'PENDING'").bind(userId).run();
   }
 
-  async insertVerification(v: VerificationRow): Promise<void> {
-    await this.db
+  private verificationInsert(v: VerificationRow): D1PreparedLike {
+    return this.db
       .prepare("INSERT INTO email_verifications (id, user_id, token_hash, status, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .bind(v.id, v.user_id, v.token_hash, v.status, v.created_at, v.expires_at, v.used_at)
-      .run();
+      .bind(v.id, v.user_id, v.token_hash, v.status, v.created_at, v.expires_at, v.used_at);
+  }
+  async insertVerification(v: VerificationRow): Promise<void> {
+    await this.verificationInsert(v).run();
   }
   async getVerificationByTokenHash(h: string): Promise<VerificationRow | null> {
     return this.db.prepare("SELECT * FROM email_verifications WHERE token_hash = ?").bind(h).first<VerificationRow>();
@@ -269,6 +304,17 @@ export class D1Store implements Store {
       .bind(status, unsubscribedAt, now, email)
       .run();
     return r.meta.changes > 0;
+  }
+
+  async insertLegalAcceptance(row: LegalAcceptanceRow): Promise<void> {
+    await this.acceptanceInsert(row).run();
+  }
+  async listLegalAcceptancesForUser(userId: string): Promise<LegalAcceptanceRow[]> {
+    const r = await this.db
+      .prepare("SELECT * FROM legal_acceptances WHERE user_id = ? ORDER BY accepted_at DESC")
+      .bind(userId)
+      .all<LegalAcceptanceRow>();
+    return r.results;
   }
 
   async insertProductGrant(g: ProductGrantRow): Promise<void> {

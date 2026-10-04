@@ -10,7 +10,7 @@ Stored per account: `id` (`usr_<24hex>`), `email` (lowercase, unique),
 `display_name`, `role` (`OWNER|ADMIN|USER`), `status`
 (`ACTIVE|DISABLED|PENDING_VERIFICATION`), `email_verified` (0/1),
 `ai_access` (0/1, default deny), `created_at`, `updated_at`,
-`last_login_at` (nullable). No other profile fields exist.
+`last_login_at` (nullable). No other profile fields exist. Registration also writes `legal_acceptances`: `user_id`, `terms_version`, `privacy_version`, `source` (`registration`), `accepted_at`. That table stores no IP and no newsletter status.
 
 ## 2. Sessions (`sessions`)
 

@@ -2818,6 +2818,23 @@ a.eco-station-body:focus-visible { background: rgba(25, 23, 33, 0.62); }
   accent-color: var(--purple);
 }
 
+.auth-check label {
+  display: inline;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.auth-check .auth-note a {
+  color: var(--crystal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .auth-heading {
   margin: 0 0 12px;
   font-family: var(--font-display);

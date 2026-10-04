@@ -1,38 +1,15 @@
-import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { D1Store } from "../worker/auth/store";
 import { handleApi } from "../worker/auth/router";
-import type { D1Like, D1Value } from "../worker/auth/types";
+import { sqliteD1 } from "./sqlite-d1";
 import { makeWorld } from "./helpers";
 import { createSession } from "../worker/auth/sessions";
 
 // Node 24's built-in SQLite exercises the actual SQL and schema without a
 // network, additional package, or local/remote D1 data. Node 20 types do not
 // declare this newer runtime API, so describe only the test adapter surface.
-type Value = string | number | null | Uint8Array;
-interface Sqlite {
-  exec(sql: string): void;
-  prepare(sql: string): { get(...values: Value[]): unknown; all(...values: Value[]): unknown[]; run(...values: Value[]): { changes: number } };
-  close(): void;
-}
-const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as { DatabaseSync: new (path: string) => Sqlite };
-
 function database() {
-  const db = new DatabaseSync(":memory:");
-  for (const file of ["0001_init.sql", "0002_ai_access.sql", "0003_conversations.sql"]) db.exec(readFileSync(new URL(`../db/migrations/${file}`, import.meta.url), "utf8"));
-  const binding: D1Like = {
-    prepare(query) {
-      let values: Value[] = [];
-      const stmt = db.prepare(query);
-      return {
-        bind(...bound: D1Value[]) { values = bound.map((v) => v instanceof ArrayBuffer ? new Uint8Array(v) : v); return this; },
-        async first<T>() { return (stmt.get(...values) ?? null) as T | null; },
-        async all<T>() { return { results: stmt.all(...values) as T[] }; },
-        async run() { return { success: true, meta: { changes: Number(stmt.run(...values).changes) } }; },
-      };
-    },
-  };
+  const { db, binding } = sqliteD1(["0001_init.sql", "0002_ai_access.sql", "0003_conversations.sql"]);
   return { db, binding, store: new D1Store(binding) };
 }
 

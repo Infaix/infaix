@@ -22,6 +22,7 @@ wrangler d1 execute infaix-db --local --file=db/migrations/0001_init.sql
 | `users` | id, email (unique, lowercase), password_hash, display_name, role, status, email_verified, timestamps, last_login_at |
 | `invitations` | Optional operator-seeding signup path: token hash (unique), status, email lock, role grant, inviter, expiry/use/revoke timestamps. Preserved for future product-grant redemption |
 | `newsletter_subscriptions` | Opt-in newsletter consent (0004; never auto-created by registration) |
+| `legal_acceptances` | Terms and privacy versions acknowledged at registration (0005; no IP) |
 | `product_grants` | Future product/beta access grants per user (0004; no writer yet) |
 | `sessions` | Session id = SHA-256(token); user FK; expiry; last seen; IP/UA |
 | `password_resets` | Single-use hashed 1-hour tokens |

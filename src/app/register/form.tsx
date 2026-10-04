@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, rateLimitMessage, type PublicUser } from "@/lib/auth-client";
-import { NEWSLETTER_CONSENT_LABEL, NEWSLETTER_POLICY_VERSION } from "@/lib/newsletter-consent";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal-versions";
+import { NEWSLETTER_CONSENT_LABEL, NEWSLETTER_POLICY_VERSION } from "@/lib/newsletter-consent";
 
 const PASSWORD_HINT = "At least 12 characters, using 3 of lowercase, uppercase, digits, and symbols.";
 
@@ -45,6 +45,7 @@ export default function RegisterForm() {
       email,
       displayName,
       password,
+      legal: { accepted: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION },
     });
     if (!res.ok) {
       setBusy(false);
@@ -155,7 +156,7 @@ export default function RegisterForm() {
           Leave this blank unless an operator sent you an invitation link.
         </p>
       </div>
-      <label className="auth-check" htmlFor="reg-terms">
+      <div className="auth-check">
         <input
           id="reg-terms"
           type="checkbox"
@@ -164,23 +165,20 @@ export default function RegisterForm() {
           disabled={busy}
           aria-describedby="reg-terms-hint"
         />
-        <span>
-          I accept the{" "}
-          <Link href="/legal/terms">
-            Terms of Use
-          </Link>{" "}
-          and have read the{" "}
-          <Link href="/legal/privacy">
-            Privacy Policy
-          </Link>
-          . Required to create an account.
-        </span>
-      </label>
-      <p id="reg-terms-hint" className="auth-note">
-        Terms version {TERMS_VERSION} and privacy version {PRIVACY_VERSION}. An account is
-        an identity only: it does not open AI, Chat or any other product. Product news is
-        a separate, optional choice below and is not part of these terms.
-      </p>
+        <div>
+          <label htmlFor="reg-terms">
+            I accept the Terms of Use and have read the Privacy Policy. Required to create an account.
+          </label>
+          <p id="reg-terms-hint" className="auth-note">
+            Terms version {TERMS_VERSION} and privacy version {PRIVACY_VERSION}. An account is
+            an identity only: it does not open AI, Chat or any other product. Product news is
+            a separate, optional choice below and is not part of these terms.{" "}
+            <Link href="/legal/terms">Terms of Use</Link>
+            {" · "}
+            <Link href="/legal/privacy">Privacy Policy</Link>
+          </p>
+        </div>
+      </div>
 
       <fieldset className="auth-optional">
         <legend>Optional — INFAIX product news</legend>

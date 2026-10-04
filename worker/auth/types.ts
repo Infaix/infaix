@@ -73,6 +73,11 @@ export interface Env {
 // storage layer can be unit-tested without Cloudflare packages.
 export interface D1Like {
   prepare(query: string): D1PreparedLike;
+  /**
+   * Run every statement in one SQLite transaction.
+   * D1 rolls the whole batch back when any statement fails.
+   */
+  batch(statements: D1PreparedLike[]): Promise<Array<{ success: boolean; meta: { changes: number } }>>;
 }
 export interface D1PreparedLike {
   bind(...values: D1Value[]): D1PreparedLike;
@@ -141,6 +146,16 @@ export type NewsletterStatus = "SUBSCRIBED" | "UNSUBSCRIBED" | "PENDING_CONFIRMA
  * creation: registering an account never creates or implies a row here.
  * `policy_version` pins the exact consent text shown at subscribe time.
  */
+/** Terms and privacy acknowledgement. Separate from newsletter consent. */
+export interface LegalAcceptanceRow {
+  id: string;
+  user_id: string;
+  terms_version: string;
+  privacy_version: string;
+  source: "registration";
+  accepted_at: number;
+}
+
 export interface NewsletterSubscriptionRow {
   email: string; // lowercase, primary key
   status: NewsletterStatus;

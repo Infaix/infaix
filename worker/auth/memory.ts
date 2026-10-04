@@ -1,7 +1,7 @@
 // In-memory Store implementation for unit tests. Mirrors D1Store
 // conditional-update semantics (claim/revoke only from PENDING).
 import type { Store, UserUpdate } from "./store";
-import type { AuditEvent, ConversationRow, InvitationRow, MessageRow, NewsletterSubscriptionRow, ProductGrantRow, ResetRow, SessionRow, UserRow, VerificationRow } from "./types";
+import type { AuditEvent, ConversationRow, InvitationRow, LegalAcceptanceRow, MessageRow, NewsletterSubscriptionRow, ProductGrantRow, ResetRow, SessionRow, UserRow, VerificationRow } from "./types";
 
 export class MemoryStore implements Store {
   async operationsSnapshot(from: number, to: number, bucketMs: number) {
@@ -43,6 +43,39 @@ export class MemoryStore implements Store {
     if (this.byEmail.has(u.email)) throw new Error("UNIQUE users.email");
     this.users.set(u.id, { ...u });
     this.byEmail.set(u.email, u.id);
+  }
+  /** When false, registration fails before either row is visible. */
+  legalSchemaReady = true;
+  /** Thrown from the acceptance half, before the account becomes visible. */
+  acceptanceWriteError: Error | null = null;
+  async registerAccount(user: UserRow, acceptance: LegalAcceptanceRow, verification: VerificationRow, invitation?: InvitationRow) {
+    if (this.byEmail.has(user.email) || this.users.has(user.id)) throw new Error("UNIQUE constraint failed: users.email");
+    if (!this.legalSchemaReady) throw new Error("no such table: legal_acceptances");
+    if (acceptance.user_id !== user.id || verification.user_id !== user.id) throw new Error("Registration user mismatch");
+    const invite = invitation ? this.invitations.get(invitation.id) : null;
+    if (invitation && (!invite || invite.status !== "PENDING" || invite.expires_at <= user.created_at || (invite.intended_email !== null && invite.intended_email !== user.email) || invite.role !== user.role)) throw new Error("Invitation unavailable");
+    if (this.legalAcceptances.some((a) => a.id === acceptance.id)) throw new Error("UNIQUE legal_acceptances.id");
+    if (this.verifications.has(verification.id) || [...this.verifications.values()].some((v) => v.token_hash === verification.token_hash)) throw new Error("UNIQUE email_verifications.token_hash");
+    if (this.acceptanceWriteError) {
+      const error = this.acceptanceWriteError;
+      this.acceptanceWriteError = null;
+      throw error;
+    }
+    const users = new Map(this.users);
+    const byEmail = new Map(this.byEmail);
+    const legalAcceptances = this.legalAcceptances.slice();
+    const verifications = new Map(this.verifications);
+    const invitations = new Map(this.invitations);
+    users.set(user.id, { ...user });
+    byEmail.set(user.email, user.id);
+    legalAcceptances.push({ ...acceptance });
+    verifications.set(verification.id, { ...verification });
+    if (invite) invitations.set(invite.id, { ...invite, status: "USED", used_at: user.created_at, used_by_user_id: user.id });
+    this.users = users;
+    this.byEmail = byEmail;
+    this.legalAcceptances = legalAcceptances;
+    this.verifications = verifications;
+    this.invitations = invitations;
   }
   async updateUser(id: string, patch: UserUpdate) {
     const u = this.users.get(id);
@@ -163,6 +196,7 @@ export class MemoryStore implements Store {
   }
 
   newsletter = new Map<string, NewsletterSubscriptionRow>();
+  legalAcceptances: LegalAcceptanceRow[] = [];
   grants = new Map<string, ProductGrantRow>();
 
   async getNewsletterByEmail(email: string) { return this.newsletter.get(email) ?? null; }
@@ -174,6 +208,11 @@ export class MemoryStore implements Store {
     row.unsubscribed_at = status === "UNSUBSCRIBED" ? now : null;
     row.updated_at = now;
     return true;
+  }
+
+  async insertLegalAcceptance(row: LegalAcceptanceRow) { this.legalAcceptances.push({ ...row }); }
+  async listLegalAcceptancesForUser(userId: string) {
+    return this.legalAcceptances.filter((row) => row.user_id === userId).map((row) => ({ ...row }));
   }
 
   async insertProductGrant(g: ProductGrantRow) { this.grants.set(g.id, { ...g }); }

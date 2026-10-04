@@ -9,7 +9,17 @@ import {
 import { OutboxMailer } from "../worker/auth/mailer";
 import { MemoryStore } from "../worker/auth/memory";
 import { newId, randomToken, sha256Hex } from "../worker/auth/crypto";
+import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from "../worker/auth/legal";
 import type { D1Like, Env, Role } from "../worker/auth/types";
+
+/** Current server policy acknowledgement. Omitted `legal` on register is filled with this. */
+export const LEGAL_ACK = {
+  legal: {
+    accepted: true as const,
+    termsVersion: CURRENT_TERMS_VERSION,
+    privacyVersion: CURRENT_PRIVACY_VERSION,
+  },
+};
 
 export const ORIGIN = "https://infaix.com";
 
@@ -78,10 +88,22 @@ export function post(path: string, body: unknown, cookie?: string, origin = ORIG
     origin,
   };
   if (cookie) headers.cookie = cookie;
+  // Registration tests that omit `legal` acknowledge the current server versions.
+  // A test of rejection must set `legal` itself (including `legal: null`).
+  let payload = body;
+  if (
+    path === "/api/auth/register" &&
+    typeof body === "object" &&
+    body !== null &&
+    !Array.isArray(body) &&
+    !Object.prototype.hasOwnProperty.call(body, "legal")
+  ) {
+    payload = { ...body, ...LEGAL_ACK };
+  }
   return new Request(`${ORIGIN}${path}`, {
     method: "POST",
     headers,
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 }
 

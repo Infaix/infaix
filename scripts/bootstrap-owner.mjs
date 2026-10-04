@@ -277,7 +277,17 @@ if (password.length < 12) {
 console.log("Registering owner account (server-side PBKDF2 hashing)...");
 const reg = await api("/api/auth/register", {
   method: "POST",
-  body: { token: inviteToken, email: OWNER_EMAIL, displayName: OWNER_DISPLAY_NAME, password },
+  body: {
+    token: inviteToken,
+    email: OWNER_EMAIL,
+    displayName: OWNER_DISPLAY_NAME,
+    password,
+    legal: {
+      accepted: true,
+      termsVersion: "terms-2026-10-03",
+      privacyVersion: "privacy-2026-10-03",
+    },
+  },
 }).catch(() => null);
 if (!reg) fail("Registration request failed (network).", "Retry once reachability is restored.");
 // 410: invite spent/taken/locked. 409 ACCOUNT_EXISTS: public-registration

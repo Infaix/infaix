@@ -6,6 +6,7 @@ import { NEWSLETTER_POLICY_VERSION, NEWSLETTER_SOURCES } from "../../src/lib/new
 import { audit } from "./audit";
 import { checkRequestOrigin } from "./cors";
 import { hashPassword, newId, randomToken, sha256Hex, verifyPassword } from "./crypto";
+import { acceptedCurrentLegal, CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION, LEGAL_ACCEPTANCE_SOURCE } from "./legal";
 import { flowLink, productionMailConfigured, type Mailer } from "./mailer";
 import { checkRateLimit, limitFromEnv } from "./ratelimit";
 import { buildClearCookie, cookieScope, createSession, verifySession } from "./sessions";
@@ -18,6 +19,7 @@ import {
   type PublicUser,
   type Role,
   type UserRow,
+  type VerificationRow,
 } from "./types";
 import { checkDisplayName, checkPassword, checkToken, isRecord, normalizeEmail } from "./validation";
 
@@ -174,6 +176,9 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
   if (!email || !displayName || !pw.ok || !password) {
     return err("INVALID_INPUT", !email ? "Enter a valid email address." : !displayName ? "Enter a valid display name (1-60 characters)." : (pw.message ?? "Invalid password."), 400);
   }
+  if (!acceptedCurrentLegal(body)) {
+    return err("LEGAL_ACK_REQUIRED", "Accept the current Terms of Use and Privacy Policy to create an account.", 400);
+  }
   diagnostic("validated");
   // Do this before any mutation. A production deployment without delivery
   // capability must not create unverifiable rows.
@@ -223,48 +228,42 @@ export async function handleRegister(ctx: HandlerContext, req: Request): Promise
     last_login_at: null,
   };
   diagnostic("user-constructed");
+  const vToken = randomToken();
+  const verification: VerificationRow = {
+    id: newId("evf"), user_id: user.id, token_hash: await sha256Hex(vToken),
+    status: "PENDING", created_at: now, expires_at: now + 24 * 60 * 60 * 1000, used_at: null,
+  };
   try {
     diagnostic("before-user-insert");
-    await ctx.store.insertUser(user);
+    await ctx.store.registerAccount(user, {
+      id: newId("lac"),
+      user_id: user.id,
+      terms_version: CURRENT_TERMS_VERSION,
+      privacy_version: CURRENT_PRIVACY_VERSION,
+      source: LEGAL_ACCEPTANCE_SOURCE,
+      accepted_at: now,
+    }, verification, inv ?? undefined);
     diagnostic("user-inserted");
   } catch (e) {
-    console.error("register:insertUser failed", {
+    console.error("register:registerAccount failed", {
       name: e instanceof Error ? e.name : typeof e,
-      message: e instanceof Error ? e.message : String(e),
-      stack: e instanceof Error ? e.stack : undefined,
     });
     // Lost a check-then-insert race: the email now exists.
+    // A failed acceptance write leaves no user, so this stays 500.
     if (await ctx.store.getUserByEmail(email)) {
       return err("ACCOUNT_EXISTS", "An account with this email address already exists.", 409);
     }
-    if (inv) {
+    if (inv && (await ctx.store.getInvitationByTokenHash(inv.token_hash))?.status !== "PENDING") {
       return err("INVITATION_INVALID", "This invitation is invalid, expired, or already used.", 410);
     }
     return err("INTERNAL", "Something went wrong.", 500);
   }
   if (inv) {
-    const claimed = await ctx.store.claimInvitation(inv.id, user.id, now);
     diagnostic("invitation-claimed");
-    if (!claimed) {
-      // Lost a race (or double submit): roll back the orphaned user row is
-      // impossible without delete; instead disable it — no login possible.
-      await ctx.store.updateUser(user.id, { status: "DISABLED", updated_at: now });
-      return err("INVITATION_INVALID", "This invitation is invalid, expired, or already used.", 410);
-    }
     await audit(ctx.store, "INVITATION_USED", { target: user.id, ip: ctx.ip, detail: `invite:${inv.id}`, now });
   }
 
-  // Issue verification token (24h). Login stays blocked until verified.
-  const vToken = randomToken();
-  await ctx.store.insertVerification({
-    id: newId("evf"),
-    user_id: user.id,
-    token_hash: await sha256Hex(vToken),
-    status: "PENDING",
-    created_at: now,
-    expires_at: now + 24 * 60 * 60 * 1000,
-    used_at: null,
-  });
+  // Initial token was committed in the same transaction as registration.
   diagnostic("verification-inserted");
   diagnostic("before-mail");
   await ctx.mailer.sendVerification(email, flowLink(ctx.origin, "/verify-email", vToken), now);
